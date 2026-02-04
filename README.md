@@ -1,4 +1,4 @@
-# Grasshopper Workflows Collection
+# Grasshopper Workflow Collection
 
 A curated collection of reusable Grasshopper workflows developed over four years, supporting parametric design, environmental analysis, and computational design exploration.
 

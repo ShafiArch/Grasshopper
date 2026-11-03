@@ -111,8 +111,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 }
 .filter sup { font-size: 10px; margin-left: 2px; color: var(--ink-2); font-stretch: 80%; }
 .filter:hover { color: var(--ink); }
-.filter.motion-toggle { margin-left: auto; color: var(--accent); }
-.filter.motion-toggle:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 7px; }
 .filter.is-active { color: var(--ink); }
 .filter.is-active .filter-label {
   text-decoration: underline;
@@ -135,7 +133,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   position: relative;
   aspect-ratio: 4 / 3;
   width: 100%;
+  max-width: 352px;   /* on wide screens the drawing sits smaller, left-aligned with the text */
   overflow: hidden;
+  cursor: default;
 }
 .preview-canvas, .preview-media {
   display: block;
@@ -234,6 +234,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 }
 @media (max-width: 560px) {
   .grid { grid-template-columns: 1fr; row-gap: 56px; }
+  .preview { max-width: none; }   /* phones: the preview fills the column */
   .card-desc { max-width: none; }
 }
 

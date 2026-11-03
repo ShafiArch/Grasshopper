@@ -905,11 +905,6 @@
 
   /* ---------- renderer ---------- */
   const DEF_VIEW = { az: -0.65, el: 0.5, spin: 0.1, zoom: 0.45, yc: 0.52, persp: 0 };
-  /* When the operating system asks for reduced motion (Windows "Animation
-     effects" off, macOS "Reduce motion"), previews are drawn as still frames
-     and only move while the pointer is over them, until the viewer opts in
-     with setMotion(true). */
-  let reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sketches = new Set();
   let colors = { ink: '#161616', accent: '#c8471f' };
   function readColors() {
@@ -978,23 +973,24 @@
     }
   }
 
+  /* Previews always animate while they are on screen, whatever the device or
+     its motion settings. Resting a mouse on a preview pauses it; moving the
+     mouse off resumes it from the same moment. */
   let raf = null;
-  const STILL_T = 4; /* seconds into the animation used for a still frame */
   function loop(now) {
     raf = null;
     let any = false;
-    for (const s of sketches) if (s.active && (!reduced || s.hover)) { any = true; s.frame(now); }
+    for (const s of sketches) if (s.active && !s.paused) { any = true; s.frame(now); }
     if (any) raf = requestAnimationFrame(loop);
   }
   function kick() { if (!raf && typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop); }
-  function still(s) { s.resize(); try { s.render(s.phase + STILL_T); } catch (e) { /* keep going */ } }
-  function refreshStills() { if (reduced) for (const s of sketches) if (s.active && !s.hover) still(s); }
+  function drawOnce(s) { s.resize(); try { s.frame(performance.now()); } catch (e) { /* keep going */ } }
 
   const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
     for (const en of entries) {
       const s = en.target.__sketch; if (!s) continue;
       s.active = en.isIntersecting;
-      if (s.active) { s.resize(); if (reduced && !s.hover) still(s); kick(); }
+      if (s.active) { s.resize(); kick(); }
     }
   }, { rootMargin: '80px' }) : null;
 
@@ -1002,36 +998,36 @@
     readColors();
     const s = new Sketch(canvas, type, opts);
     canvas.__sketch = s; sketches.add(s);
-    s.hover = false;
+    s.paused = false; s.pausedAt = 0;
     if (canvas.addEventListener) {
-      canvas.addEventListener('pointerenter', () => {
-        s.hover = true;
-        if (reduced) s.t0 = performance.now() - STILL_T * 1000; /* continue from the still frame */
-        kick();
+      canvas.addEventListener('pointerenter', (e) => {
+        if (e.pointerType && e.pointerType !== 'mouse') return; /* a tap on a phone should not freeze the card */
+        s.paused = true; s.pausedAt = performance.now();
       });
-      canvas.addEventListener('pointerleave', () => { s.hover = false; });
+      canvas.addEventListener('pointerleave', (e) => {
+        if (!s.paused) return;
+        if (e.pointerType && e.pointerType !== 'mouse') return;
+        s.t0 += performance.now() - s.pausedAt; /* resume where it stopped */
+        s.paused = false; kick();
+      });
     }
-    if (io) io.observe(canvas); else { s.active = true; if (reduced) still(s); kick(); }
+    drawOnce(s); /* a first frame right away, before the observer reports in */
+    if (io) io.observe(canvas); else { s.active = true; kick(); }
     return s;
   }
 
-  function setMotion(on) {
-    reduced = !on;
-    if (reduced) refreshStills(); else kick();
-  }
+  function setMotion() { kick(); }
 
   if (typeof window !== 'undefined') {
-    window.addEventListener('resize', () => { for (const s of sketches) s.resize(); refreshStills(); kick(); });
+    window.addEventListener('resize', () => { for (const s of sketches) s.resize(); kick(); });
+    window.addEventListener('scroll', kick, { passive: true });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
     if (typeof matchMedia === 'function') {
-      try {
-        matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); refreshStills(); kick(); });
-        matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', (e) => { setMotion(!e.matches); });
-      } catch (e) { /* older browsers */ }
+      try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); kick(); }); } catch (e) { /* older browsers */ }
     }
   }
 
-  const api = { mount, setMotion, reducedMotion: () => reduced, types: Object.keys(G), G, Sketch, readColors };
+  const api = { mount, setMotion, reducedMotion: () => false, types: Object.keys(G), G, Sketch, readColors };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window.GHPreviews = api;
 })();

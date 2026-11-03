@@ -173,16 +173,6 @@
         const v = cv.dataset.variant;
         window.GHPreviews.mount(cv, cv.dataset.preview, { seed: Number(cv.dataset.seed), variant: /^\d+$/.test(v) ? Number(v) : (v || undefined) });
       });
-      /* The OS asked for reduced motion: previews hold a still frame and move
-         on hover. Offer a one-click way to play them anyway. */
-      if (filters && window.GHPreviews.reducedMotion()) {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'filter motion-toggle';
-        b.innerHTML = '<span class="filter-label">Play previews</span>';
-        b.title = 'Your system has animations turned off, so previews are paused. Click to play them here.';
-        b.addEventListener('click', () => { window.GHPreviews.setMotion(true); b.remove(); });
-        filters.appendChild(b);
-      }
     }
 
     const year = document.getElementById('year');

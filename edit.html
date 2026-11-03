@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit a card</title>
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?t=0">
+  <link rel="stylesheet" href="assets/add.css?t=0">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body class="tool">
+
+  <header class="top">
+    <a class="top-name" href="index.html">Grasshopper Workflow Collection</a>
+    <nav class="top-nav">
+      <a href="index.html">Site</a>
+      <a href="add.html">Add a card</a>
+      <a href="https://github.com/ShafiArch/Grasshopper" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="tool-intro">
+    <h1 class="tool-title">Edit a card</h1>
+    <p class="tool-lede">Rename a file, change a card's title, description, category or plugins, or remove a card. The animation stays as it is (use Add a card to change that). Download the update, drag the files into the repository, and delete the old file on GitHub when you renamed it. Nothing on this page touches the repository by itself.</p>
+  </section>
+
+  <main class="tool-main">
+    <form class="tool-form" id="form" autocomplete="off">
+
+      <fieldset class="step">
+        <legend>1. Card</legend>
+        <label class="field">
+          <span>Card to edit</span>
+          <select id="existing"></select>
+        </label>
+        <p class="hint" id="fileInfo"></p>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend>2. File name</legend>
+        <label class="field"><span>File name (change it to rename the file)</span><input type="text" id="fileName" spellcheck="false"></label>
+        <p class="hint" id="renameNote"></p>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend>3. Card text</legend>
+        <label class="field"><span>Title</span><input type="text" id="title"></label>
+        <label class="field"><span>Category</span><select id="cat"></select></label>
+        <label class="field"><span>Plugins (comma separated)</span><input type="text" id="tags"></label>
+        <label class="field"><span>Description</span><textarea id="desc" rows="4"></textarea></label>
+        <label class="mode"><input type="checkbox" id="remove"> Remove this card from the site</label>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend>4. Save</legend>
+        <p class="hint" id="status">The update contains the changed <code>assets/site.js</code> and an <code>index.html</code> with the cache number raised. When you rename, it also contains the .gh under its new name (and its <code>graphs/</code> json if the card uses the wiring animation).</p>
+        <div class="actions">
+          <button type="button" class="dl" id="dlZip"><span class="dl-label">Download update (zip)</span><span class="dl-arrow" aria-hidden="true">&#8595;</span></button>
+          <button type="button" class="dl dl-quiet" id="dlSite"><span class="dl-label">site.js only</span></button>
+          <button type="button" class="dl dl-quiet" id="dlIndex"><span class="dl-label">index.html only</span></button>
+          <button type="button" class="dl dl-quiet" id="copyEntry"><span class="dl-label">Copy entry</span></button>
+        </div>
+        <ol class="howto" id="howto">
+          <li>Unzip the download.</li>
+          <li>Open the repository on GitHub, click Add file, then Upload files, and drag in everything from the zip. Commit.</li>
+          <li id="howtoDelete" hidden>Delete the old file: <a id="oldFileLink" href="#" target="_blank" rel="noopener">open it on GitHub</a>, click the three dots (or the trash icon), choose Delete file, and commit.</li>
+          <li>Wait a couple of minutes, then refresh the site.</li>
+        </ol>
+      </fieldset>
+    </form>
+
+    <aside class="tool-side">
+      <p class="hint">How the card will look</p>
+      <div id="cardHost" class="card-host"></div>
+      <p class="hint">Entry in <code>DATA</code> in <code>assets/site.js</code></p>
+      <pre class="entry" id="entry"></pre>
+    </aside>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    (function () {
+      const t = Date.now(), files = ['assets/previews.js', 'assets/site.js', 'assets/tooling.js', 'assets/edit.js'];
+      (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?t=' + t; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
+    })();
+  </script>
+</body>
+</html>

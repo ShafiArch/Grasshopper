@@ -7,27 +7,16 @@
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const P = window.GHPreviews, S = window.GH_SITE, R = window.GHGraph;
-  if (!P || !S || !R) { document.body.insertAdjacentHTML('beforeend', '<p class="hint status-err">A script did not load (previews.js, site.js or ghgraph.js).</p>'); return; }
+  const P = window.GHPreviews, S = window.GH_SITE, R = window.GHGraph, T = window.GHTool;
+  if (!P || !S || !R || !T) { document.body.insertAdjacentHTML('beforeend', '<p class="hint status-err">A script did not load (previews.js, site.js, ghgraph.js or tooling.js).</p>'); return; }
 
   const state = { mode: 'new', file: null, fileName: '', preview: 'composed', variant: undefined, title: '', cat: 'form', tags: [], desc: '', graph: null, info: null, recipe: null, userCat: false, userTags: false };
 
-  /* ----- helpers ----- */
-  const q = (s) => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
-  const base = (name) => name.replace(/\.(gh|ghx)$/i, '');
-  const graphPath = () => 'graphs/' + base(state.fileName) + '.json';
-  const titleFromFile = (name) => base(name).replace(/[_\s]+/g, ' ').replace(/\s+/g, ' ').trim()
-    .split(' ').map((w) => (w.length > 3 && w === w.toLowerCase() ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
+  /* ----- helpers (shared ones live in tooling.js) ----- */
+  const q = T.q, base = T.base, titleFromFile = T.titleFromFile;
+  const graphPath = () => T.graphPath(state.fileName);
   const fromFile = () => state.preview === 'graph' || state.preview === 'composed';
-  function recipeText(rc) {
-    return `{ base: ${q(rc.base)}, pattern: ${rc.pattern ? q(rc.pattern) : 'null'}, ops: [${rc.ops.map(q).join(', ')}], overlay: [${rc.overlay.map(q).join(', ')}], seed: ${rc.seed | 0}, density: ${rc.density} }`;
-  }
-  function entryText() {
-    const v = fromFile() || state.variant === undefined || state.variant === '' ? '' : `, variant: ${typeof state.variant === 'number' ? state.variant : q(state.variant)}`;
-    const extra = state.preview === 'graph' ? `, graph: ${q(graphPath())}` : state.preview === 'composed' && state.recipe ? `, recipe: ${recipeText(state.recipe)}` : '';
-    const tags = state.tags.length ? state.tags : ['Grasshopper'];
-    return `{ file: ${q(state.fileName)}, title: ${q(state.title)}, cat: ${q(state.cat)}, preview: ${q(state.preview)}${v}${extra}, tags: [${tags.map(q).join(', ')}],\n      desc: ${q(state.desc)} }`;
-  }
+  function entryText() { return T.entryText(entryObject()); }
   function entryObject() {
     return { file: state.fileName, title: state.title, cat: state.cat, preview: state.preview, variant: fromFile() ? undefined : state.variant, recipe: state.preview === 'composed' ? state.recipe : undefined, tags: state.tags.length ? state.tags : ['Grasshopper'], desc: state.desc };
   }
@@ -72,27 +61,11 @@
   }
 
   /* ----- source editing ----- */
-  async function fetchText(path) {
-    const r = await fetch(path + (path.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) throw new Error(path + ' could not be read (' + r.status + ')');
-    return r.text();
-  }
   function patchSite(src) {
     const entry = entryText();
-    if (state.mode === 'existing') {
-      const re = new RegExp("\\{ file: '" + state.fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "'[\\s\\S]*?\\}(?=,\\n|\\n  \\];)");
-      if (!re.test(src)) throw new Error('The entry for ' + state.fileName + ' was not found in site.js.');
-      return src.replace(re, entry);
-    }
-    if (src.includes("file: " + q(state.fileName))) throw new Error('site.js already has a card for ' + state.fileName + '. Choose "Existing card" to change it.');
-    const start = src.indexOf('const DATA = ['); if (start < 0) throw new Error('DATA list not found in site.js.');
-    const end = src.indexOf('\n  ];', start); if (end < 0) throw new Error('End of DATA list not found in site.js.');
-    const before = src.slice(0, end), empty = /\[\s*$/.test(before);
-    return before + (empty ? '\n    ' : ',\n    ') + entry + src.slice(end);
-  }
-  function bumpIndex(src) {
-    let max = 0; src.replace(/\?v=(\d+)/g, (m, n) => { max = Math.max(max, Number(n)); return m; });
-    return src.replace(/\?v=\d+/g, '?v=' + (max + 1));
+    if (state.mode === 'existing') return T.replaceEntry(src, state.fileName, entry);
+    if (src.includes('file: ' + q(state.fileName))) throw new Error('site.js already has a card for ' + state.fileName + '. Choose "Existing card" to change it.');
+    return T.addEntry(src, entry, state.fileName);
   }
   function validate() {
     if (!state.fileName) throw new Error('Choose a .gh file or type its name first.');
@@ -102,15 +75,11 @@
     if (state.preview === 'graph' && !state.graph) throw new Error('The wiring diagram needs the file: choose the .gh itself, or pick a drawn animation.');
     if (state.preview === 'composed' && !state.recipe) throw new Error('The generated sketch needs the file: choose the .gh itself, or pick a drawn animation.');
   }
-  function download(name, data) {
-    const blob = data instanceof Blob ? data : new Blob([data], { type: 'text/plain' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  }
+  const download = T.download;
   async function buildUpdate() {
     validate();
-    const [siteSrc, indexSrc] = await Promise.all([fetchText('assets/site.js'), fetchText('index.html')]);
-    return { site: patchSite(siteSrc), index: bumpIndex(indexSrc) };
+    const live = await T.fetchLive();
+    return { site: patchSite(live.site), index: T.bumpIndex(live.index) };
   }
 
   /* ----- live card ----- */

@@ -19,6 +19,7 @@
     <a class="top-name" href="index.html">Grasshopper Workflow Collection</a>
     <nav class="top-nav">
       <a href="index.html">Site</a>
+      <a href="edit.html">Edit a card</a>
       <a href="https://github.com/ShafiArch/Grasshopper" target="_blank" rel="noopener">GitHub</a>
     </nav>
   </header>
@@ -115,7 +116,7 @@
   <script>
     /* Load the site scripts fresh every time, so the tool always edits the live versions. */
     (function () {
-      const t = Date.now(), files = ['assets/previews.js', 'assets/site.js', 'assets/ghgraph.js', 'assets/add.js'];
+      const t = Date.now(), files = ['assets/previews.js', 'assets/site.js', 'assets/ghgraph.js', 'assets/tooling.js', 'assets/add.js'];
       (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?t=' + t; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
     })();
   </script>

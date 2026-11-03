@@ -4,7 +4,9 @@
    `media` can point to a real capture (gif, mp4 or webm) in previews/ and it
    will be shown instead of the drawn animation. `preview: 'graph'` with
    `graph: 'graphs/<file>.json'` animates the definition's own wiring diagram,
-   read from the .gh file (the add.html tool produces the json). */
+   read from the .gh file, and `preview: 'composed'` with a `recipe` object
+   draws a geometry sketch assembled from the components the file uses.
+   The add.html tool makes both. */
 (function () {
   'use strict';
 
@@ -123,7 +125,7 @@
       ? (/\.(mp4|webm)$/i.test(d.media)
         ? `<video class="preview-media" src="${esc(d.media)}" autoplay muted loop playsinline></video>`
         : `<img class="preview-media" src="${esc(d.media)}" alt="">`)
-      : `<canvas class="preview-canvas" data-preview="${esc(d.preview)}" data-variant="${esc(String(d.variant || ''))}" data-graph="${esc(d.graph || '')}" data-seed="${i + 1}" aria-hidden="true"></canvas>`;
+      : `<canvas class="preview-canvas" data-preview="${esc(d.preview)}" data-variant="${esc(String(d.variant || ''))}" data-graph="${esc(d.graph || '')}" data-recipe="${esc(d.recipe ? JSON.stringify(d.recipe) : '')}" data-seed="${i + 1}" aria-hidden="true"></canvas>`;
     return `
       <article class="card" data-cat="${d.cat}" style="--i:${i}">
         <div class="preview">${media}</div>
@@ -173,7 +175,7 @@
     if (window.GHPreviews) {
       grid.querySelectorAll('canvas.preview-canvas').forEach((cv) => {
         const v = cv.dataset.variant;
-        window.GHPreviews.mount(cv, cv.dataset.preview, { seed: Number(cv.dataset.seed), variant: /^\d+$/.test(v) ? Number(v) : (v || undefined), graphUrl: cv.dataset.graph ? encodeURI(cv.dataset.graph) : undefined });
+        window.GHPreviews.mount(cv, cv.dataset.preview, { seed: Number(cv.dataset.seed), variant: /^\d+$/.test(v) ? Number(v) : (v || undefined), graphUrl: cv.dataset.graph ? encodeURI(cv.dataset.graph) : undefined, recipe: cv.dataset.recipe ? JSON.parse(cv.dataset.recipe) : undefined });
       });
     }
 

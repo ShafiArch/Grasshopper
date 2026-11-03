@@ -158,6 +158,49 @@
     return { preview: 'isoSurface', cat: 'form' };
   }
 
+  /* Build a geometry recipe (see G.composed in previews.js) from what the file contains. */
+  function hashStr(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) % 100000; }
+  function recipe(info, fileName) {
+    const names = info.names.map((n) => n.toLowerCase()), fn = (fileName || '').toLowerCase().replace(/[_-]+/g, ' ');
+    const tags = info.tags || [];
+    const count = (re) => names.filter((n) => re.test(n)).length + (re.test(fn) ? 2 : 0);
+    const pick = (scores, order) => { let best = null, bs = 0; for (const k of order) if (scores[k] > bs) { bs = scores[k]; best = k; } return best; };
+    const baseScores = {
+      mesh: count(/kangaroo|solver|anchor|^load$|length\(line\)|^mesh|tensile|relax/) * 2 + (tags.includes('Kangaroo') ? 4 : 0),
+      box: count(/^box$|box rectangle|masses|^hb |honeybee|ladybug|zone|massing|building|energy|room|thermal|roof/) + (tags.includes('Honeybee') ? 3 : 0),
+      dome: count(/sphere|^arc|revolve|dome|shell|vault/) * 2,
+      curve: count(/divide curve|perp frames|interpolate|offset curve|alignment|road|pier|lane|curve array|sweep|bridge/),
+      ring: count(/polygon|ellipse|radial|stadium|circular|auditorium|arena/) * 1.5,
+      plane: count(/rectangle|xy plane|xz plane|screen|facade|elevation|plan$|wall|louver|fins?$/),
+      surface: count(/surface|loft|isotrim|evaluate surface|4point|edge surface|srf|morph/)
+    };
+    const base = pick(baseScores, ['mesh', 'box', 'dome', 'curve', 'ring', 'plane', 'surface']) || 'surface';
+    const patScores = {
+      voronoi: count(/voronoi/) * 3, hex: count(/hexagon|hex /) * 3, diagrid: count(/diamond|diagrid|triang|triremesh/) * 3,
+      contours: count(/contour|section/) * 3, circles: count(/circle|polygon/) * (base === 'plane' || base === 'surface' || base === 'box' ? 1.5 : 0.5),
+      scatter: count(/populate|random|jitter/) * 1.5, grid: count(/divide surface|isotrim|divide domain|panel|subsrf|grid/) + 0.5,
+      stripes: count(/series|array|divide distance/) * 0.6
+    };
+    let pattern = pick(patScores, ['voronoi', 'hex', 'diagrid', 'contours', 'circles', 'scatter', 'grid', 'stripes']);
+    if (base === 'curve' && pattern === 'grid') pattern = 'stripes';
+    if (base === 'box' && pattern === 'grid') pattern = 'circles';
+    const opScores = {
+      extrude: count(/extrude|cap holes/), offset: count(/offset/), attractor: count(/closest point|remap|distance|pull point|attract/),
+      rotate: count(/rotate|orient/), jitter: count(/jitter|random/), scale: count(/^scale/), pipe: count(/pipe/),
+      loft: count(/loft|sweep|ruled/), morph: count(/morph/), array: count(/array/)
+    };
+    const ops = Object.keys(opScores).filter((k) => opScores[k] > 0).sort((a, b) => opScores[b] - opScores[a]).slice(0, 4);
+    const overlay = [];
+    if (tags.includes('Ladybug') || tags.includes('Honeybee') || count(/sunpath|sun path|radiation/)) overlay.push('sun');
+    if (tags.includes('ClimateStudio') || count(/daylight|illuminance|radiance|sensor/)) overlay.push('sensors');
+    if (tags.includes('Butterfly') || count(/airflow|cfd|wind/)) overlay.push('airflow');
+    if (tags.includes('Kangaroo') && base !== 'mesh') overlay.push('kangaroo');
+    if (tags.includes('Galapagos') || tags.includes('Octopus') || count(/galapagos|octopus|colibri|optimi/)) overlay.push('search');
+    if (tags.includes('Biomorpher') || count(/biomorpher|anemone|wasp|growth|aggregat/)) overlay.push('growth');
+    const comps = info.graph.stats.components;
+    return { base, pattern, ops, overlay, seed: hashStr(fileName || names.join('')), density: Math.round((0.35 + 0.5 * Math.min(1, comps / 120)) * 100) / 100 };
+  }
+
   async function parse(buf) {
     const u8 = await inflateRaw(buf);
     const r = reader(u8);
@@ -167,7 +210,7 @@
     return info;
   }
 
-  const api = { parse, extract, suggest, readChunk, reader, inflateRaw };
+  const api = { parse, extract, suggest, recipe, readChunk, reader, inflateRaw };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window.GHGraph = api;
 })();

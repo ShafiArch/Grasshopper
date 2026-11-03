@@ -58,9 +58,19 @@
 
       <fieldset class="step">
         <legend>2. Animation</legend>
+        <p class="hint" id="fromFileNote">Choose a file above. Two animations are made from it: a geometry sketch assembled from the components it uses, and its wiring diagram.</p>
         <div class="from-file">
-          <button type="button" class="pick pick-file" id="pickFile" disabled><canvas></canvas><span>From the file: its wiring diagram</span></button>
-          <p class="hint" id="fromFileNote">Choose a file above and its own diagram appears here.</p>
+          <button type="button" class="pick pick-file" id="pickComposed" disabled><canvas></canvas><span>From the file: generated geometry</span></button>
+          <button type="button" class="pick pick-file" id="pickFile" disabled><canvas></canvas><span>From the file: wiring diagram</span></button>
+          <div class="adjust" id="adjust" hidden>
+            <p class="hint">Adjust the generated sketch</p>
+            <label class="field"><span>Base</span><select id="rcBase"></select></label>
+            <label class="field"><span>Pattern</span><select id="rcPattern"></select></label>
+            <div class="checks" id="rcOps"></div>
+            <div class="checks" id="rcOverlay"></div>
+            <label class="field"><span>Density</span><input type="range" id="rcDensity" min="0" max="1" step="0.05"></label>
+            <button type="button" class="dl dl-quiet" id="rcReseed"><span class="dl-label">Vary</span></button>
+          </div>
         </div>
         <p class="hint">Or a drawn schematic. They all move; the chosen one is outlined, and the one the file's contents suggest is marked.</p>
         <div class="picker" id="picker"></div>

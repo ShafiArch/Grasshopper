@@ -188,7 +188,11 @@
     if (typeof fetch === 'function' && location.protocol !== 'file:') {
       grid.querySelectorAll('.size[data-file]').forEach((el) => {
         fetch(encodeURI(el.dataset.file), { method: 'HEAD' })
-          .then((r) => { const n = Number(r.headers.get('content-length')); if (r.ok && n > 0) el.textContent = fmtSize(n); })
+          .then((r) => {
+            const n = Number(r.headers.get('content-length'));
+            if (r.ok && n > 0) el.textContent = fmtSize(n);
+            else if (r.status === 404) { el.textContent = 'file not found'; el.classList.add('size-missing'); }
+          })
           .catch(() => { /* leave whatever is shown */ });
       });
     }

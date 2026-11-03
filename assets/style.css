@@ -205,6 +205,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .dl:hover, .dl:focus-visible { background: var(--ink); color: var(--paper); }
 .dl:hover .dl-arrow { transform: translateY(2px); }
 .size { font-size: 13px; font-stretch: 85%; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.size-missing { color: var(--accent); }
 
 /* ----- footer ----- */
 .foot {

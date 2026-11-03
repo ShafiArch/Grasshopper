@@ -1063,6 +1063,65 @@
     }
   };
 
+  /* ---------- wiring diagram read from the .gh file itself ---------- */
+  /* Data: { w, h, n: [[x, y, w, h, kind]...], e: [[x1, y1, x2, y2]...] } in Grasshopper
+     canvas units (kind 0 component, 1 parameter, 2 group). Produced by ghgraph.js. */
+  G.graph = {
+    view: { el: Math.PI / 2, az: 0, spin: 0, zoom: 0.5, yc: 0.5 },
+    init(s, R, opts, sk) {
+      s.g = (opts && opts.graph) || null; s.R = R;
+      if (!s.g && opts && opts.graphUrl && typeof fetch === 'function') {
+        fetch(opts.graphUrl).then((r) => (r.ok ? r.json() : null)).then((g) => { if (g && g.n) { s.g = g; if (sk && sk.active) kick(); } }).catch(() => {});
+      }
+    },
+    step(t, s, R, v, cam) {
+      const g = s.g; if (!g || !g.n.length || !cam) return [];
+      if (!s.prep) {
+        const hs = g.n.filter((n) => n[4] !== 2).map((n) => n[3]).sort((a, b) => a - b);
+        s.medH = hs.length ? hs[hs.length >> 1] : 20;
+        s.wires = g.e.map((e) => { const d = clamp(Math.abs(e[2] - e[0]) * 0.5, 15, 150); return { p: [e[0], e[1], e[0] + d, e[1], e[2] - d, e[3], e[2], e[3]], a: e[0] / Math.max(1, g.w) }; });
+        s.prep = true;
+      }
+      const W = Math.max(g.w, 1), H = Math.max(g.h, 1), availW = cam.w * 0.9, availH = cam.h * 0.86;
+      const fit = Math.min(availW / W, availH / H), sMin = 6 / Math.max(8, s.medH);
+      const sc = Math.min(Math.max(fit, Math.min(sMin, 1.2)), fit * 3), winW = availW / sc, winH = availH / sc;
+      const pan = sc > fit + 1e-9;
+      const cx = pan ? W / 2 + Math.max(0, (W - winW) / 2) * Math.sin(t * 0.08) : W / 2;
+      const cy = pan ? H / 2 + Math.max(0, (H - winH) / 2) * Math.sin(t * 0.05 + 1.3) : H / 2;
+      const k = sc / cam.zoom;
+      const X = (x) => (x - cx) * k, Y = (y) => -(y - cy) * k;
+      const vx0 = cx - winW / 2 - 60, vx1 = cx + winW / 2 + 60, vy0 = cy - winH / 2 - 60, vy1 = cy + winH / 2 + 60;
+      const vis = (x, y, w, h) => x + w >= vx0 && x <= vx1 && y + h >= vy0 && y <= vy1;
+      const out = [], T = 7, ph = frac(t / T + 0.1), groups = [], params = [], comps = [], hot = [], divs = [], wires = [], live = [], dots = [];
+      for (const n of g.n) {
+        if (!vis(n[0], n[1], n[2], n[3])) continue;
+        const r = [[X(n[0]), Y(n[1]), 0], [X(n[0] + n[2]), Y(n[1]), 0], [X(n[0] + n[2]), Y(n[1] + n[3]), 0], [X(n[0]), Y(n[1] + n[3]), 0]];
+        if (n[4] === 2) { groups.push(r); continue; }
+        const a = n[0] / W, on = Math.abs(ph - a) < 0.035 || Math.abs(ph - a - 1) < 0.035;
+        if (on) hot.push(r); else if (n[4] === 1) params.push(r); else comps.push(r);
+        if (n[4] === 0 && n[2] * sc > 18) { divs.push([[X(n[0] + n[2] * 0.3), Y(n[1]), 0], [X(n[0] + n[2] * 0.3), Y(n[1] + n[3]), 0]]); divs.push([[X(n[0] + n[2] * 0.7), Y(n[1]), 0], [X(n[0] + n[2] * 0.7), Y(n[1] + n[3]), 0]]); }
+      }
+      const bez = (p, u) => { const m = 1 - u, a = m * m * m, b = 3 * m * m * u, c = 3 * m * u * u, d = u * u * u; return [a * p[0] + b * p[2] + c * p[4] + d * p[6], a * p[1] + b * p[3] + c * p[5] + d * p[7]]; };
+      for (const wr of s.wires) {
+        const p = wr.p;
+        if (!vis(Math.min(p[0], p[6]), Math.min(p[1], p[7]), Math.abs(p[6] - p[0]), Math.abs(p[7] - p[1]))) continue;
+        const pl = []; for (let i = 0; i <= 10; i++) { const q = bez(p, i / 10); pl.push([X(q[0]), Y(q[1]), 0]); }
+        let pr2 = (ph - wr.a) / 0.09; if (pr2 < -0.5) pr2 += 1 / 0.09;
+        if (pr2 >= 0 && pr2 <= 1) { live.push(pl); const q = bez(p, pr2); dots.push([X(q[0]), Y(q[1]), 0.01]); } else wires.push(pl);
+      }
+      if (groups.length) out.push({ kind: 'multi', paths: groups, closed: true, a: 0.16, w: 0.8 });
+      if (wires.length) out.push({ kind: 'multi', paths: wires, a: 0.4, w: 0.8 });
+      if (params.length) out.push({ kind: 'multi', paths: params, closed: true, a: 0.6, w: 0.9 });
+      if (comps.length) out.push({ kind: 'multi', paths: comps, closed: true, a: 0.95, w: 1.1 });
+      if (divs.length) out.push({ kind: 'multi', paths: divs, a: 0.4, w: 0.7 });
+      if (live.length) out.push({ kind: 'multi', paths: live, c: 'accent', a: 0.8, w: 1.0 });
+      if (hot.length) out.push({ kind: 'multi', paths: hot, closed: true, c: 'accent', a: 1, w: 1.5 });
+      for (const d of dots) out.push(D(d, { c: 'accent', r: 2.2 }));
+      out.push(L([[X(ph * W), Y(vy0), 0], [X(ph * W), Y(vy1), 0]], { c: 'accent', a: 0.12, w: 1 }));
+      return out;
+    }
+  };
+
   /* Catalogue used by the add-a-card tool: every type, with its variants and a plain description. */
   const CATALOG = [
     ['surfVoronoi', null, 'Voronoi on a surface'], ['attrVoronoi', null, 'Voronoi with attractor'], ['volVoronoi', null, 'Volume Voronoi'],
@@ -1100,7 +1159,7 @@
       this.canvas = canvas; this.ctx = canvas.getContext('2d');
       this.gen = G[type] || G.diagrid; this.variant = opts.variant;
       this.R = rng((opts.seed || 1) * 7919 + 13);
-      this.state = {}; if (this.gen.init) this.gen.init(this.state, this.R);
+      this.state = {}; if (this.gen.init) this.gen.init(this.state, this.R, opts, this);
       this.phase = opts.seed ? (opts.seed * 1.37) % 5 : 0;
       this.t0 = (typeof performance !== 'undefined' ? performance.now() : 0);
       this.active = false; this.w = 0; this.h = 0;
@@ -1122,7 +1181,7 @@
       const ctx = this.ctx, w = this.w, h = this.h, dpr = this.dpr || 1, v = Object.assign({}, DEF_VIEW, this.gen.view);
       const az0 = v.az + v.spin * t;
       const dir0 = [Math.sin(az0) * Math.cos(v.el), Math.cos(az0) * Math.cos(v.el), -Math.sin(v.el)];
-      let res = this.gen.step(t, this.state, this.R, this.variant, { dir: dir0 });
+      let res = this.gen.step(t, this.state, this.R, this.variant, { dir: dir0, w, h, zoom: Math.min(w, h) * v.zoom });
       let items = res, azExtra = 0;
       if (res && !Array.isArray(res)) { items = res.items; azExtra = res.az || 0; }
       const cam = { az: az0 + azExtra, el: v.el, zoom: Math.min(w, h) * v.zoom, cx: w / 2, cy: h * v.yc, persp: v.persp };
@@ -1138,6 +1197,12 @@
           const q = pr(it.p);
           ctx.beginPath(); ctx.arc(q[0], q[1], it.r || 2, 0, TAU);
           ctx.fillStyle = col; ctx.fill();
+          continue;
+        }
+        if (it.kind === 'multi') {
+          ctx.beginPath();
+          for (const pl of it.paths) { if (pl.length < 2) continue; const a = pr(pl[0]); ctx.moveTo(a[0], a[1]); for (let i = 1; i < pl.length; i++) { const b = pr(pl[i]); ctx.lineTo(b[0], b[1]); } if (it.closed) ctx.closePath(); }
+          ctx.strokeStyle = col; ctx.lineWidth = it.w || 1; ctx.setLineDash([]); ctx.stroke();
           continue;
         }
         if (it.kind === 'segs') {

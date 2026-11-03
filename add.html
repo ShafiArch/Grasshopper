@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add a card</title>
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?t=0">
+  <link rel="stylesheet" href="assets/add.css?t=0">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body class="tool">
+
+  <header class="top">
+    <a class="top-name" href="index.html">Grasshopper Workflow Collection</a>
+    <nav class="top-nav">
+      <a href="index.html">Site</a>
+      <a href="https://github.com/ShafiArch/Grasshopper" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="tool-intro">
+    <h1 class="tool-title">Add a card</h1>
+    <p class="tool-lede">Pick a Grasshopper file, choose the animation that fits it, write the card text, and download the update. Then drag the downloaded files into the repository and commit. Nothing on this page touches the repository by itself.</p>
+  </section>
+
+  <main class="tool-main">
+    <form class="tool-form" id="form" autocomplete="off">
+
+      <fieldset class="step">
+        <legend>1. File</legend>
+        <div class="mode">
+          <label><input type="radio" name="mode" value="new" checked> New file</label>
+          <label><input type="radio" name="mode" value="existing"> Existing card</label>
+        </div>
+        <div class="mode-new" id="modeNew">
+          <label class="field">
+            <span>Choose the .gh file</span>
+            <input type="file" id="file" accept=".gh,.ghx">
+          </label>
+          <label class="field">
+            <span>or type its exact file name</span>
+            <input type="text" id="fileName" placeholder="My_New_Script.gh" spellcheck="false">
+          </label>
+        </div>
+        <div class="mode-existing" id="modeExisting" hidden>
+          <label class="field">
+            <span>Card to change</span>
+            <select id="existing"></select>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend>2. Animation</legend>
+        <p class="hint">Click a thumbnail. They all move; the chosen one is outlined.</p>
+        <div class="picker" id="picker"></div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend>3. Card text</legend>
+        <label class="field"><span>Title</span><input type="text" id="title" placeholder="Surface Voronoi"></label>
+        <label class="field"><span>Category</span><select id="cat"></select></label>
+        <label class="field"><span>Plugins (comma separated)</span><input type="text" id="tags" placeholder="Kangaroo, LunchBox"></label>
+        <label class="field"><span>Description</span><textarea id="desc" rows="4" placeholder="One or two sentences on what the definition does."></textarea></label>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend>4. Save</legend>
+        <p class="hint" id="status">The update contains the changed <code>assets/site.js</code>, an <code>index.html</code> with the cache number raised, and the .gh file if you chose one.</p>
+        <div class="actions">
+          <button type="button" class="dl" id="dlZip"><span class="dl-label">Download update (zip)</span><span class="dl-arrow" aria-hidden="true">&#8595;</span></button>
+          <button type="button" class="dl dl-quiet" id="dlSite"><span class="dl-label">site.js only</span></button>
+          <button type="button" class="dl dl-quiet" id="dlIndex"><span class="dl-label">index.html only</span></button>
+          <button type="button" class="dl dl-quiet" id="copyEntry"><span class="dl-label">Copy entry</span></button>
+        </div>
+        <ol class="howto">
+          <li>Unzip the download.</li>
+          <li>Open the repository on GitHub, click Add file, then Upload files.</li>
+          <li>Drag in <code>index.html</code>, the <code>assets</code> folder and the .gh file. Commit.</li>
+          <li>Wait a couple of minutes, then refresh the site.</li>
+        </ol>
+      </fieldset>
+    </form>
+
+    <aside class="tool-side">
+      <p class="hint">How the card will look</p>
+      <div id="cardHost" class="card-host"></div>
+      <p class="hint">Entry that goes into <code>DATA</code> in <code>assets/site.js</code></p>
+      <pre class="entry" id="entry"></pre>
+    </aside>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    /* Load the site scripts fresh every time, so the tool always edits the live versions. */
+    (function () {
+      const t = Date.now(), files = ['assets/previews.js', 'assets/site.js', 'assets/add.js'];
+      (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?t=' + t; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
+    })();
+  </script>
+</body>
+</html>

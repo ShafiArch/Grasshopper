@@ -905,7 +905,6 @@
 
   /* ---------- renderer ---------- */
   const DEF_VIEW = { az: -0.65, el: 0.5, spin: 0.1, zoom: 0.45, yc: 0.52, persp: 0 };
-  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sketches = new Set();
   let colors = { ink: '#161616', accent: '#c8471f' };
   function readColors() {
@@ -974,35 +973,61 @@
     }
   }
 
+  /* Previews always animate while they are on screen, whatever the device or
+     its motion settings. Resting a mouse on a preview pauses it; moving the
+     mouse off resumes it from the same moment. */
   let raf = null;
   function loop(now) {
     raf = null;
     let any = false;
-    for (const s of sketches) if (s.active) { any = true; s.frame(now); }
-    if (any && !reduced) raf = requestAnimationFrame(loop);
+    for (const s of sketches) if (s.active && !s.paused) { any = true; s.frame(now); }
+    if (any) raf = requestAnimationFrame(loop);
   }
-  function kick() { if (!raf && !reduced) raf = requestAnimationFrame(loop); }
+  function kick() { if (!raf && typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop); }
+  function drawOnce(s) { s.resize(); try { s.frame(performance.now()); } catch (e) { /* keep going */ } }
 
   const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
-    for (const en of entries) { const s = en.target.__sketch; if (!s) continue; s.active = en.isIntersecting; if (s.active) { s.resize(); kick(); } }
+    for (const en of entries) {
+      const s = en.target.__sketch; if (!s) continue;
+      s.active = en.isIntersecting;
+      if (s.active) { s.resize(); kick(); }
+    }
   }, { rootMargin: '80px' }) : null;
 
   function mount(canvas, type, opts) {
     readColors();
     const s = new Sketch(canvas, type, opts);
     canvas.__sketch = s; sketches.add(s);
-    if (reduced) { s.active = true; s.render(s.phase + 4); s.active = false; }
-    else if (io) io.observe(canvas); else { s.active = true; kick(); }
+    s.paused = false; s.pausedAt = 0;
+    if (canvas.addEventListener) {
+      canvas.addEventListener('pointerenter', (e) => {
+        if (e.pointerType && e.pointerType !== 'mouse') return; /* a tap on a phone should not freeze the card */
+        s.paused = true; s.pausedAt = performance.now();
+      });
+      canvas.addEventListener('pointerleave', (e) => {
+        if (!s.paused) return;
+        if (e.pointerType && e.pointerType !== 'mouse') return;
+        s.t0 += performance.now() - s.pausedAt; /* resume where it stopped */
+        s.paused = false; kick();
+      });
+    }
+    drawOnce(s); /* a first frame right away, before the observer reports in */
+    if (io) io.observe(canvas); else { s.active = true; kick(); }
     return s;
   }
 
+  function setMotion() { kick(); }
+
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', () => { for (const s of sketches) s.resize(); kick(); });
+    window.addEventListener('scroll', kick, { passive: true });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
-    if (typeof matchMedia === 'function') { try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); kick(); }); } catch (e) { /* older browsers */ } }
+    if (typeof matchMedia === 'function') {
+      try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); kick(); }); } catch (e) { /* older browsers */ }
+    }
   }
 
-  const api = { mount, types: Object.keys(G), G, Sketch, readColors };
+  const api = { mount, setMotion, reducedMotion: () => false, types: Object.keys(G), G, Sketch, readColors };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window.GHPreviews = api;
 })();

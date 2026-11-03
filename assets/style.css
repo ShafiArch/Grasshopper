@@ -133,7 +133,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   position: relative;
   aspect-ratio: 4 / 3;
   width: 100%;
+  max-width: 352px;   /* on wide screens the drawing sits smaller, left-aligned with the text */
   overflow: hidden;
+  cursor: default;
 }
 .preview-canvas, .preview-media {
   display: block;
@@ -232,6 +234,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 }
 @media (max-width: 560px) {
   .grid { grid-template-columns: 1fr; row-gap: 56px; }
+  .preview { max-width: none; }   /* phones: the preview fills the column */
   .card-desc { max-width: none; }
 }
 

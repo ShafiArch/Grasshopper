@@ -159,7 +159,7 @@
       filters.innerHTML = [`<button class="filter is-active" data-cat="all"><span class="filter-label">All</span> <sup>${sorted.length}</sup></button>`]
         .concat(CATEGORIES.map(([k, n]) => `<button class="filter" data-cat="${k}"><span class="filter-label">${esc(n)}</span> <sup>${counts[k] || 0}</sup></button>`)).join('');
       filters.addEventListener('click', (e) => {
-        const b = e.target.closest('.filter'); if (!b) return;
+        const b = e.target.closest('.filter[data-cat]'); if (!b) return;
         filters.querySelectorAll('.filter').forEach((x) => x.classList.toggle('is-active', x === b));
         const cat = b.dataset.cat;
         let shown = 0;

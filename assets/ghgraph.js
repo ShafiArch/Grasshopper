@@ -82,14 +82,17 @@
     const objs = find(defn, 'DefinitionObjects')[0]; if (!objs) throw new Error('No objects found in the definition.');
     const libs = [];
     for (const c of find(defn, 'GHALibraries')) for (const l of c.chunks) { const n = item(l, 'Name'); if (n) libs.push(n); }
-    const nodes = [], anchors = new Map(), inputs = [], groups = [], names = [];
+    const nodes = [], anchors = new Map(), inputs = [], groups = [], names = [], objInfo = [], paramOwner = new Map(), groupNicks = [];
     for (const o of objs.chunks) {
       const name = item(o, 'Name') || '';
       const cont = find(o, 'Container')[0]; if (!cont) continue;
-      if (name === 'Group') { groups.push(itemsNamed(cont, 'ID')); continue; }
+      if (name === 'Group') { groups.push(itemsNamed(cont, 'ID')); const gn = item(cont, 'NickName'); if (gn) groupNicks.push(gn); continue; }
       const rect = attrRect(cont); if (!rect) continue;
       const iid = item(cont, 'InstanceGuid');
       names.push(name);
+      const objIndex = objInfo.length;
+      objInfo.push({ name, nick: item(cont, 'NickName') || '', up: new Set(), down: new Set(), srcs: [] });
+      if (iid) paramOwner.set(iid, objIndex);
       let pin = find(cont, 'param_input'), pout = find(cont, 'param_output');
       const pdata = find(cont, 'ParameterData')[0];
       if (pdata) { pin = find(pdata, 'InputParam'); pout = find(pdata, 'OutputParam'); }
@@ -98,19 +101,38 @@
       if (isComp) {
         pin.forEach((p, k) => {
           const r = attrRect(p) || [rect[0], rect[1] + rect[3] * (k + 0.5) / Math.max(1, pin.length) - 10, 20, 20];
-          const srcs = itemsNamed(p, 'Source'); if (srcs.length) inputs.push([r[0], r[1] + r[3] / 2, srcs]);
+          const srcs = itemsNamed(p, 'Source'); if (srcs.length) { inputs.push([r[0], r[1] + r[3] / 2, srcs]); objInfo[objIndex].srcs.push(...srcs); }
         });
         pout.forEach((p, k) => {
           const r = attrRect(p) || [rect[0] + rect[2] - 20, rect[1] + rect[3] * (k + 0.5) / Math.max(1, pout.length) - 10, 20, 20];
-          const pid = item(p, 'InstanceGuid'); if (pid) anchors.set(pid, [r[0] + r[2], r[1] + r[3] / 2]);
+          const pid = item(p, 'InstanceGuid'); if (pid) { anchors.set(pid, [r[0] + r[2], r[1] + r[3] / 2]); paramOwner.set(pid, objIndex); }
         });
       } else {
         if (iid) anchors.set(iid, [rect[0] + rect[2], rect[1] + rect[3] / 2]);
-        const srcs = itemsNamed(cont, 'Source'); if (srcs.length) inputs.push([rect[0], rect[1] + rect[3] / 2, srcs]);
+        const srcs = itemsNamed(cont, 'Source'); if (srcs.length) { inputs.push([rect[0], rect[1] + rect[3] / 2, srcs]); objInfo[objIndex].srcs.push(...srcs); }
       }
     }
     const edges = [];
     for (const [x, y, srcs] of inputs) for (const s of srcs) { const a = anchors.get(s); if (a) edges.push([a[0], a[1], x, y]); }
+    /* object-level topology: which objects feed which, and how close each is to the end of the definition */
+    objInfo.forEach((o, i) => { for (const sg of o.srcs) { const u = paramOwner.get(sg); if (u !== undefined && u !== i) { o.up.add(u); objInfo[u].down.add(i); } } });
+    const UI = /^(panel|custom preview|colour swatch|color swatch|scribble|relay|number slider|boolean toggle|button|value list|bifocals|group|sketch|data recorder|jump|gradient|legend|item selector|md slider|graph mapper|knob|gene pool|galapagos|octopus|biomorpher|colibri|data dam|timer|cluster output)$/i;
+    const dist = new Array(objInfo.length).fill(Infinity);
+    const isUI = (o) => UI.test(o.name.trim());
+    const queue = [];
+    objInfo.forEach((o, i) => { if (isUI(o)) return; const realDown = [...o.down].filter((d) => !isUI(objInfo[d])); if (!realDown.length) { dist[i] = 0; queue.push(i); } });
+    while (queue.length) { const v = queue.shift(); for (const u of objInfo[v].up) if (!isUI(objInfo[u]) && dist[u] > dist[v] + 1) { dist[u] = dist[v] + 1; queue.push(u); } }
+    const D = Math.max(1, ...dist.filter((d) => isFinite(d)));
+    const weighted = {};
+    const addW = (key, w) => { if (!key) return; weighted[key] = (weighted[key] || 0) + w; };
+    objInfo.forEach((o, i) => {
+      if (isUI(o)) return;
+      const rank = isFinite(dist[i]) ? 1 - dist[i] / D : 0.5, w = 0.25 + 0.75 * rank;
+      addW(o.name, w); if (o.nick && o.nick !== o.name && !/^[A-Za-z]{0,3}$/.test(o.nick) && !UI.test(o.nick.trim())) addW('~' + o.nick, w * 0.6);
+    });
+    const nameSet = new Set(names);
+    for (const gn of groupNicks) if (!nameSet.has(gn) && !UI.test(gn.trim())) addW('~' + gn, 0.6);
+    const finals = objInfo.map((o, i) => [o, dist[i]]).filter(([o, d]) => d === 0).map(([o]) => o.name).filter((v, i, a) => a.indexOf(v) === i);
     const byId = new Map(); for (const n of nodes) if (n[5]) byId.set(n[5], n);
     for (const members of groups) {
       const rs = members.map((m) => byId.get(m)).filter(Boolean); if (!rs.length) continue;
@@ -137,7 +159,7 @@
       if (/^(lb |ladybug)/.test(low)) add('Ladybug'); if (/^(hb |honeybee)/.test(low)) add('Honeybee');
       if (low === 'galapagos') add('Galapagos'); if (low.startsWith('octopus')) add('Octopus'); if (low.startsWith('biomorpher')) add('Biomorpher');
     }
-    return { graph, libs, tags, names: [...new Set(names)].sort() };
+    return { graph, libs, tags, names: [...new Set(names)].sort(), weighted, finals, groupNicks };
   }
 
   /* Suggest the closest schematic type and a category from what is in the file. */
@@ -163,14 +185,17 @@
   function recipe(info, fileName) {
     const names = info.names.map((n) => n.toLowerCase()), fn = (fileName || '').toLowerCase().replace(/[_-]+/g, ' ');
     const tags = info.tags || [];
-    const count = (re) => names.filter((n) => re.test(n)).length + (re.test(fn) ? 2 : 0);
+    const weighted = info.weighted || {}, finals = new Set((info.finals || []).map((n) => n.toLowerCase()));
+    const keys = Object.keys(weighted).length ? Object.keys(weighted).map((k) => [k.replace(/^~/, '').toLowerCase(), weighted[k]]) : names.map((n) => [n, 1]);
+    /* components near the end of the definition weigh most: they make the final geometry */
+    const count = (re) => keys.reduce((acc, [k, w]) => acc + (re.test(k) ? w + (finals.has(k) ? 1.5 : 0) : 0), 0) + (re.test(fn) ? 4 : 0);
     const pick = (scores, order) => { let best = null, bs = 0; for (const k of order) if (scores[k] > bs) { bs = scores[k]; best = k; } return best; };
     const baseScores = {
       mesh: count(/kangaroo|solver|anchor|^load$|length\(line\)|^mesh|tensile|relax/) * 2 + (tags.includes('Kangaroo') ? 4 : 0),
       box: count(/^box$|box rectangle|masses|^hb |honeybee|ladybug|zone|massing|building|energy|room|thermal|roof/) + (tags.includes('Honeybee') ? 3 : 0),
       dome: count(/sphere|^arc|revolve|dome|shell|vault/) * 2,
       curve: count(/divide curve|perp frames|interpolate|offset curve|alignment|road|pier|lane|curve array|sweep|bridge/),
-      ring: count(/polygon|ellipse|radial|stadium|circular|auditorium|arena/) * 1.5,
+      ring: count(/polygon|ellipse|radial|stadium|circular|auditorium|arena|circle/) * 1.5,
       plane: count(/rectangle|xy plane|xz plane|screen|facade|elevation|plan$|wall|louver|fins?$/),
       surface: count(/surface|loft|isotrim|evaluate surface|4point|edge surface|srf|morph/)
     };
@@ -185,11 +210,13 @@
     if (base === 'curve' && pattern === 'grid') pattern = 'stripes';
     if (base === 'box' && pattern === 'grid') pattern = 'circles';
     const opScores = {
-      extrude: count(/extrude|cap holes/), offset: count(/offset/), attractor: count(/closest point|remap|distance|pull point|attract/),
+      extrude: count(/extrude|cap holes|solid union|box$/), offset: count(/offset|project/), attractor: count(/closest point|remap|pull point|attract|distance$/),
       rotate: count(/rotate|orient/), jitter: count(/jitter|random/), scale: count(/^scale/), pipe: count(/pipe/),
-      loft: count(/loft|sweep|ruled/), morph: count(/morph/), array: count(/array/)
+      loft: count(/loft|sweep|ruled|edge surface|4point/), morph: count(/morph/), array: count(/array|orient|perp frames|divide distance|series/),
+      fold: count(/fold|pleat|crease|rotate axis/) * 2
     };
-    const ops = Object.keys(opScores).filter((k) => opScores[k] > 0).sort((a, b) => opScores[b] - opScores[a]).slice(0, 4);
+    const best = Math.max(...Object.values(opScores), 0.01);
+    const ops = Object.keys(opScores).filter((k) => opScores[k] >= Math.max(1, best * 0.25)).sort((a, b) => opScores[b] - opScores[a]).slice(0, 3);
     const overlay = [];
     if (tags.includes('Ladybug') || tags.includes('Honeybee') || count(/sunpath|sun path|radiation/)) overlay.push('sun');
     if (tags.includes('ClimateStudio') || count(/daylight|illuminance|radiance|sensor/)) overlay.push('sensors');

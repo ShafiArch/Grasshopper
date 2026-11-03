@@ -1130,7 +1130,7 @@
      overlay: sun, sensors, airflow, kangaroo, search, growth */
   const COMPOSE_BASES = ['surface', 'plane', 'box', 'curve', 'dome', 'mesh', 'ring'];
   const COMPOSE_PATTERNS = [null, 'grid', 'voronoi', 'hex', 'diagrid', 'circles', 'scatter', 'contours', 'stripes'];
-  const COMPOSE_OPS = ['extrude', 'offset', 'attractor', 'rotate', 'jitter', 'scale', 'pipe', 'loft', 'morph', 'array'];
+  const COMPOSE_OPS = ['extrude', 'offset', 'attractor', 'rotate', 'jitter', 'scale', 'pipe', 'loft', 'morph', 'array', 'fold'];
   const COMPOSE_OVERLAYS = ['sun', 'sensors', 'airflow', 'kangaroo', 'search', 'growth'];
 
   G.composed = {
@@ -1201,7 +1201,20 @@
         out.push(...surfaceLines(F, nu, nv, { a: rc.pattern ? 0.15 : 0.55, w: 0.8 }));
         if (rc.base !== 'dome' && rc.base !== 'ring') out.push(L([F(0, 0), F(1, 0), F(1, 1), F(0, 1)], { closed: true, w: 1.3 }));
         if (rc.base === 'ring') { out.push(L(Array.from({ length: 64 }, (_, i) => F(i / 64, 1)), { closed: true, w: 1.3 })); out.push(L(Array.from({ length: 64 }, (_, i) => F(i / 64, 0)), { closed: true, w: 1.1 })); }
-        if (rc.base === 'curve') { out.push(L(Array.from({ length: 40 }, (_, i) => F(i / 39, 0)), { w: 1.3 })); out.push(L(Array.from({ length: 40 }, (_, i) => F(i / 39, 1)), { w: 1.3 })); for (let u = 0.05; u < 1; u += 0.1) { const p = F(u, 0.5); out.push(L([[p[0], p[1], -0.35], p], { w: 1.1 })); } }
+        if (rc.base === 'curve') {
+          const edge0 = Array.from({ length: 40 }, (_, i) => F(i / 39, 0)), edge1 = Array.from({ length: 40 }, (_, i) => F(i / 39, 1));
+          out.push(L(edge0, { w: has('pipe') ? 1.8 : 1.3 })); out.push(L(edge1, { w: has('pipe') ? 1.8 : 1.3 }));
+          if (has('extrude')) { /* a deck with thickness */
+            const dz = 0.09; out.push(L(edge0.map((p) => [p[0], p[1], p[2] - dz]), { w: 1.0 })); out.push(L(edge1.map((p) => [p[0], p[1], p[2] - dz]), { w: 1.0 }));
+            for (let i = 0; i < 40; i += 6) { out.push(L([edge0[i], [edge0[i][0], edge0[i][1], edge0[i][2] - dz]], { a: 0.7 })); out.push(L([edge1[i], [edge1[i][0], edge1[i][1], edge1[i][2] - dz]], { a: 0.7 })); }
+          }
+          if (has('offset')) { /* lane lines */
+            for (const v of [0.25, 0.5, 0.75]) out.push(L(Array.from({ length: 40 }, (_, i) => F(i / 39, v)), { a: v === 0.5 ? 0.8 : 0.5, w: 0.9, dash: v === 0.5 ? [0.05, 0.035] : undefined, dashOff: -t * 0.08 }));
+          }
+          if (has('array') || has('rotate')) { /* piers */
+            for (let u = 0.05; u < 1; u += 0.1) { const p = F(u, 0.5), p0 = F(u, 0.2), p1 = F(u, 0.8), zb = p[2] - (has('extrude') ? 0.09 : 0.02); out.push(L([[p[0], p[1], -0.35], [p[0], p[1], zb]], { w: 1.2 })); out.push(L([[p0[0], p0[1], zb], [p1[0], p1[1], zb]], { w: 1.0 })); }
+          } else out.push(L(Array.from({ length: 40 }, (_, i) => { const p = F(i / 39, 0.5); return [p[0], p[1], -0.35]; }), { a: 0.25, dash: [0.02, 0.03] }));
+        }
         if (has('array') && rc.base === 'plane') out.push(...surfaceLines((u, v) => { const p = F(u, v); return [p[0], p[1] + 0.5, p[2]]; }, 10, 10, { a: 0.15, w: 0.7 }));
         if (rc.base !== 'plane') out.push(...groundGrid(5, 2.6, { a: 0.08 }).map((l) => { l.pts = l.pts.map((p) => [p[0], p[1], -0.45]); return l; }));
       }
@@ -1233,7 +1246,13 @@
         return c.map((p) => { const dx = (p[0] - ce[0]) * k, dy = (p[1] - ce[1]) * k; return [ce[0] + dx * cr - dy * sr + jx, ce[1] + dx * sr + dy * cr + jy]; });
       });
       /* ----- draw cells on the base ----- */
-      const toW = (p) => F(lerp(uvBounds[0], uvBounds[2], clamp(p[0], 0, 1)), lerp(uvBounds[1], uvBounds[3], clamp(p[1], 0, 1)));
+      const toW0 = (p) => F(lerp(uvBounds[0], uvBounds[2], clamp(p[0], 0, 1)), lerp(uvBounds[1], uvBounds[3], clamp(p[1], 0, 1)));
+      const foldAmp = has('fold') ? 0.07 + 0.05 * Math.sin(t * 0.6) : 0;
+      let toW = toW0;
+      if (foldAmp) {
+        const nCol = Math.max(2, s.n);
+        toW = (p) => { const b = toW0(p), nn = N(p[0], p[1]), sg = (Math.round(p[0] * nCol) % 2 ? 1 : -1) * foldAmp; return [b[0] + nn[0] * sg, b[1] + nn[1] * sg, b[2] + nn[2] * sg]; };
+      }
       const reveal = ov('growth') ? frac(t / 9) * 1.3 : 2;
       const hRaise = has('extrude') ? 0.06 + 0.08 * (0.5 + 0.5 * Math.sin(t * 0.5)) : 0;
       const paths = [], tops = [], verts = [], inner = [];

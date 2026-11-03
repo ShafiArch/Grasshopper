@@ -44,7 +44,7 @@
       if (my !== reqId) return; /* a newer file was chosen meanwhile */
       state.info = info; state.graph = info.graph;
       const st = info.graph.stats;
-      $('fileInfo').textContent = `${st.components} components, ${st.params} parameters, ${st.wires} wires` + (st.groups ? `, ${st.groups} groups` : '') + (info.tags.length ? '. Plugins: ' + info.tags.join(', ') : '') + '.';
+      $('fileInfo').textContent = `${st.components} components, ${st.params} parameters, ${st.wires} wires` + (st.groups ? `, ${st.groups} groups` : '') + (info.tags.length ? '. Plugins: ' + info.tags.join(', ') : '') + (info.finals && info.finals.length ? '. Ends in: ' + info.finals.slice(0, 5).join(', ') : '') + '.';
       if (!state.userTags && info.tags.length) { state.tags = info.tags.slice(); $('tags').value = state.tags.join(', '); }
       if (!state.userCat && state.mode === 'new') { state.cat = info.suggest.cat; $('cat').value = state.cat; }
       if (!(state.mode === 'existing' && state.recipe)) state.recipe = R.recipe(info, state.fileName);

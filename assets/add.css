@@ -83,3 +83,10 @@ button.dl:hover { background: var(--ink); color: var(--paper); }
   .tool-main { grid-template-columns: 1fr; }
   .tool-side { position: static; order: -1; }
 }
+
+/* the wiring-diagram option read from the file */
+.from-file { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: center; margin-bottom: 22px; }
+.pick-file canvas { width: 100%; aspect-ratio: 4 / 3; }
+.pick-file:disabled { cursor: default; opacity: 0.45; }
+.pick.is-suggested span::after { content: " (suggested)"; color: var(--accent); }
+@media (max-width: 600px) { .from-file { grid-template-columns: 1fr; } }

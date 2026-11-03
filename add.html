@@ -25,7 +25,7 @@
 
   <section class="tool-intro">
     <h1 class="tool-title">Add a card</h1>
-    <p class="tool-lede">Pick a Grasshopper file, choose the animation that fits it, write the card text, and download the update. Then drag the downloaded files into the repository and commit. Nothing on this page touches the repository by itself.</p>
+    <p class="tool-lede">Pick a Grasshopper file and the tool reads it here in the browser: the card gets an animation of the definition's own wiring diagram, every component and wire where you placed it. Prefer a drawn schematic instead? Pick one. Write the card text, download the update, and drag the files into the repository. Nothing on this page touches the repository by itself.</p>
   </section>
 
   <main class="tool-main">
@@ -47,6 +47,7 @@
             <input type="text" id="fileName" placeholder="My_New_Script.gh" spellcheck="false">
           </label>
         </div>
+        <p class="hint" id="fileInfo"></p>
         <div class="mode-existing" id="modeExisting" hidden>
           <label class="field">
             <span>Card to change</span>
@@ -57,7 +58,11 @@
 
       <fieldset class="step">
         <legend>2. Animation</legend>
-        <p class="hint">Click a thumbnail. They all move; the chosen one is outlined.</p>
+        <div class="from-file">
+          <button type="button" class="pick pick-file" id="pickFile" disabled><canvas></canvas><span>From the file: its wiring diagram</span></button>
+          <p class="hint" id="fromFileNote">Choose a file above and its own diagram appears here.</p>
+        </div>
+        <p class="hint">Or a drawn schematic. They all move; the chosen one is outlined, and the one the file's contents suggest is marked.</p>
         <div class="picker" id="picker"></div>
       </fieldset>
 
@@ -71,7 +76,7 @@
 
       <fieldset class="step">
         <legend>4. Save</legend>
-        <p class="hint" id="status">The update contains the changed <code>assets/site.js</code>, an <code>index.html</code> with the cache number raised, and the .gh file if you chose one.</p>
+        <p class="hint" id="status">The update contains the changed <code>assets/site.js</code>, an <code>index.html</code> with the cache number raised, the wiring diagram as <code>graphs/&lt;file&gt;.json</code> when that animation is chosen, and the .gh file itself if you chose one.</p>
         <div class="actions">
           <button type="button" class="dl" id="dlZip"><span class="dl-label">Download update (zip)</span><span class="dl-arrow" aria-hidden="true">&#8595;</span></button>
           <button type="button" class="dl dl-quiet" id="dlSite"><span class="dl-label">site.js only</span></button>
@@ -81,7 +86,7 @@
         <ol class="howto">
           <li>Unzip the download.</li>
           <li>Open the repository on GitHub, click Add file, then Upload files.</li>
-          <li>Drag in <code>index.html</code>, the <code>assets</code> folder and the .gh file. Commit.</li>
+          <li>Drag in <code>index.html</code>, the <code>assets</code> and <code>graphs</code> folders and the .gh file. Commit.</li>
           <li>Wait a couple of minutes, then refresh the site.</li>
         </ol>
       </fieldset>
@@ -96,10 +101,11 @@
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
   <script>
     /* Load the site scripts fresh every time, so the tool always edits the live versions. */
     (function () {
-      const t = Date.now(), files = ['assets/previews.js', 'assets/site.js', 'assets/add.js'];
+      const t = Date.now(), files = ['assets/previews.js', 'assets/site.js', 'assets/ghgraph.js', 'assets/add.js'];
       (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?t=' + t; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
     })();
   </script>

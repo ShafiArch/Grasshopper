@@ -8,6 +8,8 @@ The site is four files plus the `.gh` files themselves. GitHub Pages serves the 
 | `assets/style.css` | Everything visual: colours, typeface, spacing, how many cards per row. |
 | `assets/site.js` | The list of cards (`DATA`), the category names, the filters, the download links. |
 | `assets/previews.js` | The drawing engine and the library of preview animations. |
+| `assets/ghgraph.js` | Reads a .gh file in the browser and extracts its wiring diagram. Used by the add-a-card tool. |
+| `graphs/` | One small `.json` per definition holding its wiring diagram (boxes and wires at canvas positions), used by the "from the file" animation. |
 | `previews/` | Optional real screen captures that replace a drawn animation. |
 | `.nojekyll` | Tells GitHub Pages to serve the files without processing. Leave it. |
 
@@ -18,9 +20,9 @@ Every edit is made on GitHub: open the file, click the pencil icon, change it, c
 The quickest way to add or change a card is the tool page at **add.html** (https://shafiarch.github.io/Grasshopper/add.html). It is not linked from the main page.
 
 1. Choose the .gh file (or type its name), or switch to "Existing card" to change one that is already on the site.
-2. Click an animation thumbnail. Every type is shown moving, including variants.
+2. The tool reads the file right there in the browser and shows its own wiring diagram animated: every component, parameter, group and wire at its real canvas position, with a solution sweep running left to right. That is the default animation for the card. The file's plugins are read too and filled in as tags. If you prefer a drawn schematic, click one of the thumbnails instead; the one the file's contents suggest is marked.
 3. Fill in title, category, plugins and description. The card on the right updates as you type.
-4. Click **Download update (zip)**. The zip holds `index.html` (cache number raised), `assets/site.js` (with the new or changed entry) and the .gh file itself when you chose one.
+4. Click **Download update (zip)**. The zip holds `index.html` (cache number raised), `assets/site.js` (with the new or changed entry), `graphs/<file>.json` when the wiring animation is chosen, and the .gh file itself when you chose one.
 5. Unzip, then on GitHub click Add file, Upload files, drag in `index.html`, the `assets` folder and the .gh file, and commit.
 
 The tool reads the live `site.js` and `index.html` from the site each time, so it always edits the current versions. It never writes to the repository itself; the upload is the commit.
@@ -54,6 +56,12 @@ The file size under the download button is read from the file automatically.
 - Filter names: the `CATEGORIES` list at the top of `assets/site.js`.
 - Page title, intro paragraphs, byline, footer: `index.html`.
 - To remove a card, delete its entry from `DATA` (and the file, if you like).
+
+## The animation read from the file
+
+A .gh file is a compressed GH_IO archive: a tree of named chunks describing every object on the canvas, its position and size, its parameters and which parameter each input is wired from. `assets/ghgraph.js` decompresses and walks that tree in the browser and writes out a compact diagram: boxes for components and parameters, boxes for groups, and a line for every wire. The site animates it: nodes light up in a sweep from left to right and pulses travel along the wires, so each definition gets an animation that is its own. Large definitions are shown with a slow pan across the canvas.
+
+What the file does not contain is the geometry it produces. Grasshopper computes that when the definition runs, so a true picture of the output still needs a capture from Rhino (see below).
 
 ## How the animations work
 
@@ -97,6 +105,7 @@ The animations are schematic sketches of the idea of each definition; they are n
 | `auditorium` | Raked section with sightlines |
 | `stadium` | Ring of panels of varying height |
 | `jitter` | Panel grid with jittered subdivision |
+| `graph` | The definition's own wiring diagram, read from the .gh (needs `graph: 'graphs/<file>.json'`) |
 | `attractorScreen` | Perforated screen with an attractor |
 | `isoSurface` | Doubly curved surface with isocurves |
 | `terrain` | Terrain mesh with contour lines and a rising water level |

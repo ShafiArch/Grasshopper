@@ -1122,6 +1122,171 @@
     }
   };
 
+  /* ---------- composed geometry: a sketch assembled from what a .gh contains ---------- */
+  /* recipe = { base, pattern, ops: [], overlay: [], seed, density }
+     base: surface | plane | box | curve | dome | mesh | ring
+     pattern: grid | voronoi | hex | diagrid | circles | scatter | contours | stripes | null
+     ops: extrude, offset, attractor, rotate, jitter, scale, pipe, loft, morph, array
+     overlay: sun, sensors, airflow, kangaroo, search, growth */
+  const COMPOSE_BASES = ['surface', 'plane', 'box', 'curve', 'dome', 'mesh', 'ring'];
+  const COMPOSE_PATTERNS = [null, 'grid', 'voronoi', 'hex', 'diagrid', 'circles', 'scatter', 'contours', 'stripes'];
+  const COMPOSE_OPS = ['extrude', 'offset', 'attractor', 'rotate', 'jitter', 'scale', 'pipe', 'loft', 'morph', 'array'];
+  const COMPOSE_OVERLAYS = ['sun', 'sensors', 'airflow', 'kangaroo', 'search', 'growth'];
+
+  G.composed = {
+    view: { el: 0.45, spin: 0.1, zoom: 0.44, yc: 0.54 },
+    init(s, R, opts) {
+      const rc = Object.assign({ base: 'surface', pattern: 'grid', ops: [], overlay: [], seed: 1, density: 0.5 }, (opts && opts.recipe) || {});
+      rc.ops = (rc.ops || []).filter((o) => COMPOSE_OPS.includes(o)); rc.overlay = (rc.overlay || []).filter((o) => COMPOSE_OVERLAYS.includes(o));
+      if (!COMPOSE_BASES.includes(rc.base)) rc.base = 'surface';
+      if (!COMPOSE_PATTERNS.includes(rc.pattern)) rc.pattern = 'grid';
+      s.rc = rc; s.R = rng((rc.seed | 0) * 48271 + 7); const Q = s.R;
+      s.has = (o) => rc.ops.includes(o); s.ov = (o) => rc.overlay.includes(o);
+      s.azOff = Q() * TAU; s.amp = 0.18 + 0.2 * Q(); s.fx = 1.4 + Q() * 1.4; s.fy = 1.2 + Q() * 1.4; s.ph1 = Q() * TAU;
+      const d = clamp(rc.density, 0, 1);
+      s.n = Math.round(lerp(5, 11, d)); s.m = Math.round(lerp(4, 9, d));
+      if (rc.pattern === 'voronoi' || rc.pattern === 'scatter') { const k = Math.round(lerp(10, 26, d)); s.sites = Array.from({ length: k }, () => [Q(), Q()]); s.sph = s.sites.map(() => Q() * TAU); }
+      if (rc.pattern === 'hex') s.hexA = lerp(0.11, 0.065, d);
+      if (rc.base === 'mesh' || s.ov('kangaroo')) {
+        const nC = 12;
+        s.cloth = makeCloth(nC, nC, (i, j) => [lerp(-0.85, 0.85, i / (nC - 1)), lerp(-0.85, 0.85, j / (nC - 1)), rc.base === 'mesh' ? 0.35 : 0], rc.base === 'mesh' ? 1 : 0.85);
+        const P = s.cloth.P, pins = rc.base === 'mesh' ? [[0, 0], [nC - 1, 0], [nC - 1, nC - 1], [0, nC - 1]] : [[0, 0], [nC - 1, 0], [nC - 1, nC - 1], [0, nC - 1], [Math.floor(nC / 2), Math.floor(nC / 2)]];
+        for (const [i, j] of pins) { const a = P[s.cloth.id(i, j)]; a.pin = a.o.slice(); }
+        s.cycle = 0;
+      }
+      if (s.ov('airflow')) { s.pt = Array.from({ length: 70 }, () => ({ p: [Q() * 2 - 1, Q() * 2 - 1, 0.1 + Q() * 0.5], age: Q() * 5 })); s.lastT = null; }
+      if (s.ov('search')) { s.cand = Array.from({ length: 7 }, () => [Q(), Q()]); s.best = [Q(), Q()]; }
+      s.revealOrder = null;
+    },
+    step(t, s, R) {
+      const rc = s.rc, out = [], Q = s.R, has = s.has, ov = s.ov, amp = s.amp * (has('morph') ? 0.8 + 0.5 * Math.sin(t * 0.4) : 1);
+      /* ----- base surface F(u,v) -> xyz ----- */
+      let F, N = null, drawBase = true;
+      const hz = (x, y) => amp * Math.sin(x * s.fx + s.ph1 + t * 0.25) * Math.cos(y * s.fy) + 0.06 * Math.sin((x - y) * 2.3 + t * 0.2);
+      if (rc.base === 'surface') F = (u, v) => { const x = lerp(-1, 1, u), y = lerp(-1, 1, v); return [x, y, hz(x, y)]; };
+      else if (rc.base === 'plane') F = (u, v) => { const x = lerp(-0.95, 0.95, u), z = lerp(-0.65, 0.65, v); return [x, has('morph') ? 0.12 * Math.sin(x * 2 + t * 0.3) * Math.cos(z * 2) : 0, z]; };
+      else if (rc.base === 'box') F = (u, v) => [lerp(-0.6, 0.6, u), -0.4, lerp(0.02, 0.58, v)];
+      else if (rc.base === 'curve') F = (u, v) => { const c = alignment(u, t), c2 = alignment(u + 0.002, t), tx = c2[0] - c[0], ty = c2[1] - c[1], l = Math.hypot(tx, ty) || 1; const w = 0.22; return [c[0] - ty / l * w * (v - 0.5) * 2, c[1] + tx / l * w * (v - 0.5) * 2, 0.1 + 0.06 * Math.sin(u * 3)]; };
+      else if (rc.base === 'dome') F = (u, v) => { const lon = u * TAU, lat = lerp(0.1, 1.45, v), r = 0.92; return [r * Math.cos(lat) * Math.cos(lon), r * Math.cos(lat) * Math.sin(lon), -0.35 + r * Math.sin(lat)]; };
+      else if (rc.base === 'ring') F = (u, v) => { const a = u * TAU, r = lerp(0.3, 0.95, v); return [r * Math.cos(a), r * Math.sin(a), 0.32 * (1 - v) + (has('rotate') ? 0.06 * Math.sin(a * 8 + t) : 0)]; };
+      else if (rc.base === 'mesh') {
+        if (t - s.cycle > 8) { resetCloth(s.cloth); s.cycle = t; }
+        runPhysics(s, t, 1 / 60, 4, () => stepCloth(s.cloth, 1 / 60, -2.0, 4, 0.985));
+        const c = s.cloth, n = c.n - 1;
+        F = (u, v) => { const fu = clamp(u, 0, 1) * n, fv = clamp(v, 0, 1) * n, i = Math.min(n - 1, Math.floor(fu)), j = Math.min(n - 1, Math.floor(fv)), a = fu - i, b = fv - j;
+          const p00 = c.P[c.id(i, j)].p, p10 = c.P[c.id(i + 1, j)].p, p01 = c.P[c.id(i, j + 1)].p, p11 = c.P[c.id(i + 1, j + 1)].p;
+          return [0, 1, 2].map((k) => lerp(lerp(p00[k], p10[k], a), lerp(p01[k], p11[k], a), b)); };
+        drawBase = !rc.pattern || rc.pattern === 'scatter';
+      }
+      if (ov('kangaroo') && rc.base !== 'mesh') {
+        /* relax a net over the base: anchors at corners and centre lifted */
+        const c = s.cloth, n = c.n - 1;
+        c.P[c.id(6, 6)].pin = [0, 0, 0.4 + 0.15 * Math.sin(t * 0.6)];
+        runPhysics(s, t, 1 / 60, 4, () => stepCloth(c, 1 / 60, -0.6, 3, 0.9));
+        const F0 = F;
+        F = (u, v) => { const base = F0(u, v); const fu = clamp(u, 0, 1) * n, fv = clamp(v, 0, 1) * n, i = Math.min(n - 1, Math.floor(fu)), j = Math.min(n - 1, Math.floor(fv)), a = fu - i, b = fv - j;
+          const z = lerp(lerp(c.P[c.id(i, j)].p[2], c.P[c.id(i + 1, j)].p[2], a), lerp(c.P[c.id(i, j + 1)].p[2], c.P[c.id(i + 1, j + 1)].p[2], a), b);
+          return [base[0], base[1], base[2] + z]; };
+        for (const a of c.P) if (a.pin) out.push(D(F(a.i / n, a.j / n), { c: 'accent', r: 2.4 }));
+      }
+      N = (u, v) => { const e = 0.01, a = F(u + e, v), b = F(u - e, v), c2 = F(u, v + e), d = F(u, v - e); const du = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dv = [c2[0] - d[0], c2[1] - d[1], c2[2] - d[2]]; const nx = du[1] * dv[2] - du[2] * dv[1], ny = du[2] * dv[0] - du[0] * dv[2], nz = du[0] * dv[1] - du[1] * dv[0], l = Math.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l]; };
+      /* ----- draw the base ----- */
+      if (rc.base === 'box') {
+        out.push(...cubeLines([0, 0, 0.3], [1.2, 0.8, 0.6], { w: 1.2 }));
+        for (let z = 0.15; z < 0.58; z += 0.15) out.push(L([[-0.6, -0.4, z], [0.6, -0.4, z], [0.6, 0.4, z], [-0.6, 0.4, z]], { closed: true, a: 0.25 }));
+        if (has('array')) { out.push(...cubeLines([0.95, 0.1, 0.18], [0.5, 0.6, 0.36], { w: 0.9, a: 0.6 })); out.push(...cubeLines([-0.95, -0.05, 0.22], [0.5, 0.5, 0.44], { w: 0.9, a: 0.6 })); }
+        out.push(...groundGrid(5, 2.6, { a: 0.1 }));
+      } else if (drawBase) {
+        const nu = rc.base === 'dome' ? 24 : 10, nv = rc.base === 'dome' ? 6 : 10;
+        out.push(...surfaceLines(F, nu, nv, { a: rc.pattern ? 0.15 : 0.55, w: 0.8 }));
+        if (rc.base !== 'dome' && rc.base !== 'ring') out.push(L([F(0, 0), F(1, 0), F(1, 1), F(0, 1)], { closed: true, w: 1.3 }));
+        if (rc.base === 'ring') { out.push(L(Array.from({ length: 64 }, (_, i) => F(i / 64, 1)), { closed: true, w: 1.3 })); out.push(L(Array.from({ length: 64 }, (_, i) => F(i / 64, 0)), { closed: true, w: 1.1 })); }
+        if (rc.base === 'curve') { out.push(L(Array.from({ length: 40 }, (_, i) => F(i / 39, 0)), { w: 1.3 })); out.push(L(Array.from({ length: 40 }, (_, i) => F(i / 39, 1)), { w: 1.3 })); for (let u = 0.05; u < 1; u += 0.1) { const p = F(u, 0.5); out.push(L([[p[0], p[1], -0.35], p], { w: 1.1 })); } }
+        if (has('array') && rc.base === 'plane') out.push(...surfaceLines((u, v) => { const p = F(u, v); return [p[0], p[1] + 0.5, p[2]]; }, 10, 10, { a: 0.15, w: 0.7 }));
+        if (rc.base !== 'plane') out.push(...groundGrid(5, 2.6, { a: 0.08 }).map((l) => { l.pts = l.pts.map((p) => [p[0], p[1], -0.45]); return l; }));
+      }
+      /* ----- pattern cells in uv ----- */
+      let cells = [], centers = [];
+      const grid = (nx, ny, fn) => { for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) fn(i / nx, j / ny, (i + 1) / nx, (j + 1) / ny, (i + 0.5) / nx, (j + 0.5) / ny); };
+      const uvBounds = rc.base === 'dome' ? [0, 0.15, 1, 0.95] : [0, 0, 1, 1];
+      const tri = (x) => 1 - Math.abs(((x % 2) + 2) % 2 - 1); void tri;
+      if (rc.pattern === 'grid') grid(s.n, s.m, (u0, v0, u1, v1, cu, cv) => { cells.push([[u0, v0], [u1, v0], [u1, v1], [u0, v1]]); centers.push([cu, cv]); });
+      else if (rc.pattern === 'circles') grid(s.n, s.m, (u0, v0, u1, v1, cu, cv) => { const ru = (u1 - u0) * 0.42, rv = (v1 - v0) * 0.42, pts = []; for (let k = 0; k < 12; k++) { const a = (k / 12) * TAU; pts.push([cu + ru * Math.cos(a), cv + rv * Math.sin(a)]); } cells.push(pts); centers.push([cu, cv]); });
+      else if (rc.pattern === 'diagrid') grid(s.n, s.m, (u0, v0, u1, v1, cu, cv) => { cells.push([[cu, v0], [u1, cv], [cu, v1], [u0, cv]]); centers.push([cu, cv]); });
+      else if (rc.pattern === 'hex') { const a = s.hexA; for (let i = -1; i < 1 / (1.5 * a) + 1; i++) for (let j = -1; j < 1 / (Math.sqrt(3) * a) + 1; j++) { const cu = a * 1.5 * i + a, cv = a * Math.sqrt(3) * (j + 0.5 * (i & 1)) + a; if (cu < 0 || cu > 1 || cv < 0 || cv > 1) continue; const pts = []; for (let k = 0; k < 6; k++) { const an = (k / 6) * TAU; pts.push([cu + a * Math.cos(an), cv + a * Math.sin(an)]); } cells.push(pts); centers.push([cu, cv]); } }
+      else if (rc.pattern === 'voronoi') { const sites = s.sites.map((p, i) => [clamp(p[0] + 0.05 * Math.sin(t * 0.3 + s.sph[i]), 0.01, 0.99), clamp(p[1] + 0.05 * Math.cos(t * 0.27 + s.sph[i] * 1.7), 0.01, 0.99)]); voronoi(sites, 0, 0, 1, 1).forEach((c, i) => { if (c.length > 2) { cells.push(c); centers.push(sites[i]); } }); }
+      else if (rc.pattern === 'scatter') { s.sites.forEach((p, i) => { const q = [clamp(p[0] + 0.06 * Math.sin(t * 0.35 + s.sph[i]), 0, 1), clamp(p[1] + 0.06 * Math.cos(t * 0.3 + s.sph[i] * 2), 0, 1)]; centers.push(q); }); }
+      else if (rc.pattern === 'contours') { for (let k = 1; k < 9; k++) { const v = k / 9; cells.push(Array.from({ length: 24 }, (_, i) => [i / 23, v])); centers.push([0.5, v]); } }
+      else if (rc.pattern === 'stripes') { for (let k = 0; k <= s.n * 2; k++) { const u = k / (s.n * 2); cells.push([[u, 0], [u, 1]]); centers.push([u, 0.5]); } }
+      const openPattern = rc.pattern === 'contours' || rc.pattern === 'stripes';
+      /* ----- ops in uv ----- */
+      const A = [0.5 + 0.38 * Math.sin(t * 0.42), 0.5 + 0.34 * Math.cos(t * 0.33 + 1)];
+      const sc = has('scale') ? 0.75 + 0.2 * Math.sin(t * 0.5) : 1;
+      const rot = has('rotate') ? 0.35 * Math.sin(t * 0.45) : 0;
+      const jit = has('jitter') ? 0.03 : 0;
+      cells = cells.map((c, i) => {
+        if (openPattern) return c;
+        const ce = centers[i]; let k = sc;
+        if (has('attractor')) { const d = Math.hypot(ce[0] - A[0], ce[1] - A[1]); k *= clamp(0.45 + 0.8 * d, 0.45, 1); }
+        const r = rot * (has('attractor') ? 2 - 2 * Math.hypot(ce[0] - A[0], ce[1] - A[1]) : 1), cr = Math.cos(r), sr = Math.sin(r);
+        const jx = jit * Math.sin(t * 0.8 + i * 1.7), jy = jit * Math.cos(t * 0.7 + i * 0.9);
+        return c.map((p) => { const dx = (p[0] - ce[0]) * k, dy = (p[1] - ce[1]) * k; return [ce[0] + dx * cr - dy * sr + jx, ce[1] + dx * sr + dy * cr + jy]; });
+      });
+      /* ----- draw cells on the base ----- */
+      const toW = (p) => F(lerp(uvBounds[0], uvBounds[2], clamp(p[0], 0, 1)), lerp(uvBounds[1], uvBounds[3], clamp(p[1], 0, 1)));
+      const reveal = ov('growth') ? frac(t / 9) * 1.3 : 2;
+      const hRaise = has('extrude') ? 0.06 + 0.08 * (0.5 + 0.5 * Math.sin(t * 0.5)) : 0;
+      const paths = [], tops = [], verts = [], inner = [];
+      cells.forEach((c, i) => {
+        const ce = centers[i];
+        if (ov('growth') && Math.hypot(ce[0], ce[1]) / 1.42 > reveal) return;
+        const w = c.map(toW); paths.push(w);
+        if (has('offset') && !openPattern) inner.push(c.map((p) => [lerp(ce[0], p[0], 0.62), lerp(ce[1], p[1], 0.62)]).map(toW));
+        if (hRaise > 0) {
+          const nn = N(ce[0], ce[1]), h = hRaise * (has('attractor') ? clamp(1.6 - 1.4 * Math.hypot(ce[0] - A[0], ce[1] - A[1]), 0.2, 1.6) : 1);
+          const top = w.map((p) => [p[0] + nn[0] * h, p[1] + nn[1] * h, p[2] + nn[2] * h]); tops.push(top);
+          for (let k = 0; k < w.length; k += Math.max(1, Math.floor(w.length / 4))) verts.push([w[k], top[k]]);
+        }
+      });
+      if (paths.length) out.push({ kind: 'multi', paths, closed: !openPattern, w: has('pipe') ? 1.6 : 1.0, a: 0.95 });
+      if (inner.length) out.push({ kind: 'multi', paths: inner, closed: true, w: 0.8, a: 0.55 });
+      if (tops.length) { out.push({ kind: 'multi', paths: tops, closed: !openPattern, w: 1.0, a: 0.9 }); out.push({ kind: 'multi', paths: verts, w: 0.8, a: 0.55 }); }
+      if (has('loft') && centers.length > 2 && rc.pattern !== 'voronoi' && rc.pattern !== 'scatter') {
+        const rows = new Map(); centers.forEach((ce, i) => { const key = Math.round(ce[1] * 100); if (!rows.has(key)) rows.set(key, []); rows.get(key).push(ce); });
+        const rl = []; for (const r of rows.values()) if (r.length > 1) rl.push(r.sort((a, b) => a[0] - b[0]).map(toW));
+        out.push({ kind: 'multi', paths: rl, w: 0.8, a: 0.4 });
+      }
+      if (rc.pattern === 'scatter') { for (const ce of centers) { const p = toW(ce); out.push(D(p, { r: 1.8, a: 0.85 })); if (has('extrude')) { const nn = N(ce[0], ce[1]), h = 0.12; out.push(L([p, [p[0] + nn[0] * h, p[1] + nn[1] * h, p[2] + nn[2] * h]], { w: 0.9 })); } } }
+      if (has('attractor')) { const p = toW(A); out.push(D(p, { c: 'accent', r: 3 })); out.push(L(circlePts(p, 0.07, 20, rc.base === 'plane' ? 'y' : 'z'), { c: 'accent', closed: true, a: 0.7, w: 0.8 })); }
+      /* ----- overlays ----- */
+      if (ov('sun')) {
+        const { sun } = sunPath(t, 11, 1.35, out);
+        for (const uv of [[0.1, 0.9], [0.9, 0.9], [0.5, 0.5]]) out.push(L([sun, toW(uv)], { a: 0.18, dash: [0.03, 0.04] }));
+      }
+      if (ov('sensors')) {
+        const a = frac(t / 11) * Math.PI, alt = Math.max(0.05, Math.sin(a));
+        for (let i = 0; i < 7; i++) for (let j = 0; j < 4; j++) { const uv = [(i + 0.5) / 7, (j + 0.5) / 4], p = toW(uv), I = alt * Math.exp(-2 * uv[1]); out.push(D([p[0], p[1], p[2] + 0.012], { r: 0.7 + 3 * I, a: 0.5 + 0.4 * I })); }
+      }
+      if (ov('airflow')) {
+        const dt = s.lastT === null ? 0.016 : clamp(t - s.lastT, 0, 0.05); s.lastT = t;
+        for (const q of s.pt) {
+          const v = [0.4 + 0.1 * Math.sin(q.p[1] * 4 + t), 0.15 * Math.sin(q.p[0] * 3 + t * 0.5), 0.08 * Math.cos(q.p[0] * 2.5 + q.p[2] * 6)];
+          q.p[0] += v[0] * dt; q.p[1] += v[1] * dt; q.p[2] += v[2] * dt; q.age += dt;
+          if (q.p[0] > 1.1 || q.age > 6) { q.p = [-1.1, Q() * 1.6 - 0.8, 0.1 + Q() * 0.5]; q.age = 0; }
+          out.push(L([[q.p[0] - v[0] * 0.14, q.p[1] - v[1] * 0.14, q.p[2] - v[2] * 0.14], q.p], { a: 0.5 * Math.min(1, q.age * 3), w: 0.9 }));
+        }
+      }
+      if (ov('search')) {
+        const gen = frac(t / 6);
+        s.cand.forEach((c, i) => { const k = smooth(gen) * 0.9; const p = toW([lerp(c[0], s.best[0], k), lerp(c[1], s.best[1], k)]); out.push(D([p[0], p[1], p[2] + 0.015], { r: 1.8, a: 0.7 })); out.push(L([p, toW(s.best)], { a: 0.2, dash: [0.02, 0.02] })); });
+        const b = toW(s.best); out.push(D([b[0], b[1], b[2] + 0.02], { c: 'accent', r: 3 })); out.push(L(circlePts([b[0], b[1], b[2] + 0.02], 0.08, 20, 'z'), { c: 'accent', closed: true, a: 0.7, w: 0.8 }));
+        if (gen > 0.98 && !s.jumped) { s.jumped = true; s.best = [0.2 + 0.6 * Q(), 0.2 + 0.6 * Q()]; s.cand = s.cand.map(() => [Q(), Q()]); } else if (gen < 0.5) s.jumped = false;
+      }
+      return { items: out, az: s.azOff };
+    }
+  };
+  G.composed.bases = COMPOSE_BASES; G.composed.patterns = COMPOSE_PATTERNS; G.composed.ops = COMPOSE_OPS; G.composed.overlays = COMPOSE_OVERLAYS;
+
   /* Catalogue used by the add-a-card tool: every type, with its variants and a plain description. */
   const CATALOG = [
     ['surfVoronoi', null, 'Voronoi on a surface'], ['attrVoronoi', null, 'Voronoi with attractor'], ['volVoronoi', null, 'Volume Voronoi'],

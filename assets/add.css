@@ -85,8 +85,15 @@ button.dl:hover { background: var(--ink); color: var(--paper); }
 }
 
 /* the wiring-diagram option read from the file */
-.from-file { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: center; margin-bottom: 22px; }
+.from-file { display: grid; grid-template-columns: 220px 220px minmax(0, 1fr); gap: 16px 22px; align-items: start; margin-bottom: 22px; }
+.adjust { max-width: 420px; }
+.adjust .field { margin-bottom: 10px; }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 10px; font-size: 13.5px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--ink-2); }
+.checks input:checked + span { color: var(--ink); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
 .pick-file canvas { width: 100%; aspect-ratio: 4 / 3; }
 .pick-file:disabled { cursor: default; opacity: 0.45; }
 .pick.is-suggested span::after { content: " (suggested)"; color: var(--accent); }
+@media (max-width: 900px) { .from-file { grid-template-columns: 1fr 1fr; } .adjust { grid-column: 1 / -1; } }
 @media (max-width: 600px) { .from-file { grid-template-columns: 1fr; } }

@@ -20,7 +20,7 @@ Every edit is made on GitHub: open the file, click the pencil icon, change it, c
 The quickest way to add or change a card is the tool page at **add.html** (https://shafiarch.github.io/Grasshopper/add.html). It is not linked from the main page.
 
 1. Choose the .gh file (or type its name), or switch to "Existing card" to change one that is already on the site.
-2. The tool reads the file right there in the browser and shows its own wiring diagram animated: every component, parameter, group and wire at its real canvas position, with a solution sweep running left to right. That is the default animation for the card. The file's plugins are read too and filled in as tags. If you prefer a drawn schematic, click one of the thumbnails instead; the one the file's contents suggest is marked.
+2. The tool reads the file right there in the browser and makes two animations from it. The first, and the default, is a geometry sketch assembled from the components the file uses: the base form (a surface, a flat panel, a massing box, an alignment, a dome, a Kangaroo mesh or a radial ring), the pattern on it (grid, Voronoi, hexagons, diagrid, circles, scattered points, contours or stripes), the operations applied (extrude, offset, attractor, rotate, jitter, scale, pipe, loft, morph, array) and overlays for what the file analyses or solves (sun path, daylight sensors, airflow, Kangaroo relaxation, an optimization search, growth). Every part can be changed in the Adjust panel, and Vary gives a different random variation. The second is its wiring diagram: every component, parameter, group and wire at its real canvas position with a solution sweep. The file's plugins are read too and filled in as tags. If you prefer a drawn schematic, click one of the thumbnails instead; the one the file's contents suggest is marked.
 3. Fill in title, category, plugins and description. The card on the right updates as you type.
 4. Click **Download update (zip)**. The zip holds `index.html` (cache number raised), `assets/site.js` (with the new or changed entry), `graphs/<file>.json` when the wiring animation is chosen, and the .gh file itself when you chose one.
 5. Unzip, then on GitHub click Add file, Upload files, drag in `index.html`, the `assets` folder and the .gh file, and commit.
@@ -57,7 +57,10 @@ The file size under the download button is read from the file automatically.
 - Page title, intro paragraphs, byline, footer: `index.html`.
 - To remove a card, delete its entry from `DATA` (and the file, if you like).
 
-## The animation read from the file
+## The animations made from the file
+
+The generated geometry sketch is a recipe, stored in the card entry as `recipe: { base, pattern, ops, overlay, seed, density }`, that `previews.js` draws live. The recipe is derived from the names of the components in the file (`ghgraph.js`), so two files with different components get different sketches, and the Adjust panel in the tool lets you change any part of it by hand.
+
 
 A .gh file is a compressed GH_IO archive: a tree of named chunks describing every object on the canvas, its position and size, its parameters and which parameter each input is wired from. `assets/ghgraph.js` decompresses and walks that tree in the browser and writes out a compact diagram: boxes for components and parameters, boxes for groups, and a line for every wire. The site animates it: nodes light up in a sweep from left to right and pulses travel along the wires, so each definition gets an animation that is its own. Large definitions are shown with a slow pan across the canvas.
 
@@ -105,6 +108,7 @@ The animations are schematic sketches of the idea of each definition; they are n
 | `auditorium` | Raked section with sightlines |
 | `stadium` | Ring of panels of varying height |
 | `jitter` | Panel grid with jittered subdivision |
+| `composed` | A geometry sketch assembled from a `recipe` derived from the file's components (made in the tool) |
 | `graph` | The definition's own wiring diagram, read from the .gh (needs `graph: 'graphs/<file>.json'`) |
 | `attractorScreen` | Perforated screen with an attractor |
 | `isoSurface` | Doubly curved surface with isocurves |

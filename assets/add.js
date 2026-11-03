@@ -10,7 +10,7 @@
   const P = window.GHPreviews, S = window.GH_SITE, R = window.GHGraph;
   if (!P || !S || !R) { document.body.insertAdjacentHTML('beforeend', '<p class="hint status-err">A script did not load (previews.js, site.js or ghgraph.js).</p>'); return; }
 
-  const state = { mode: 'new', file: null, fileName: '', preview: 'graph', variant: undefined, title: '', cat: 'form', tags: [], desc: '', graph: null, info: null, userCat: false, userTags: false };
+  const state = { mode: 'new', file: null, fileName: '', preview: 'composed', variant: undefined, title: '', cat: 'form', tags: [], desc: '', graph: null, info: null, recipe: null, userCat: false, userTags: false };
 
   /* ----- helpers ----- */
   const q = (s) => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
@@ -18,15 +18,18 @@
   const graphPath = () => 'graphs/' + base(state.fileName) + '.json';
   const titleFromFile = (name) => base(name).replace(/[_\s]+/g, ' ').replace(/\s+/g, ' ').trim()
     .split(' ').map((w) => (w.length > 3 && w === w.toLowerCase() ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
+  const fromFile = () => state.preview === 'graph' || state.preview === 'composed';
+  function recipeText(rc) {
+    return `{ base: ${q(rc.base)}, pattern: ${rc.pattern ? q(rc.pattern) : 'null'}, ops: [${rc.ops.map(q).join(', ')}], overlay: [${rc.overlay.map(q).join(', ')}], seed: ${rc.seed | 0}, density: ${rc.density} }`;
+  }
   function entryText() {
-    const isGraph = state.preview === 'graph';
-    const v = isGraph || state.variant === undefined || state.variant === '' ? '' : `, variant: ${typeof state.variant === 'number' ? state.variant : q(state.variant)}`;
-    const gpath = isGraph ? `, graph: ${q(graphPath())}` : '';
+    const v = fromFile() || state.variant === undefined || state.variant === '' ? '' : `, variant: ${typeof state.variant === 'number' ? state.variant : q(state.variant)}`;
+    const extra = state.preview === 'graph' ? `, graph: ${q(graphPath())}` : state.preview === 'composed' && state.recipe ? `, recipe: ${recipeText(state.recipe)}` : '';
     const tags = state.tags.length ? state.tags : ['Grasshopper'];
-    return `{ file: ${q(state.fileName)}, title: ${q(state.title)}, cat: ${q(state.cat)}, preview: ${q(state.preview)}${v}${gpath}, tags: [${tags.map(q).join(', ')}],\n      desc: ${q(state.desc)} }`;
+    return `{ file: ${q(state.fileName)}, title: ${q(state.title)}, cat: ${q(state.cat)}, preview: ${q(state.preview)}${v}${extra}, tags: [${tags.map(q).join(', ')}],\n      desc: ${q(state.desc)} }`;
   }
   function entryObject() {
-    return { file: state.fileName, title: state.title, cat: state.cat, preview: state.preview, variant: state.preview === 'graph' ? undefined : state.variant, tags: state.tags.length ? state.tags : ['Grasshopper'], desc: state.desc };
+    return { file: state.fileName, title: state.title, cat: state.cat, preview: state.preview, variant: fromFile() ? undefined : state.variant, recipe: state.preview === 'composed' ? state.recipe : undefined, tags: state.tags.length ? state.tags : ['Grasshopper'], desc: state.desc };
   }
   function setStatus(msg, cls) { const el = $('status'); el.textContent = msg; el.className = 'hint ' + (cls || ''); }
   function graphJSON() { const g = state.graph; return JSON.stringify({ v: g.v, w: g.w, h: g.h, n: g.n, e: g.e, stats: g.stats }); }
@@ -44,14 +47,16 @@
       $('fileInfo').textContent = `${st.components} components, ${st.params} parameters, ${st.wires} wires` + (st.groups ? `, ${st.groups} groups` : '') + (info.tags.length ? '. Plugins: ' + info.tags.join(', ') : '') + '.';
       if (!state.userTags && info.tags.length) { state.tags = info.tags.slice(); $('tags').value = state.tags.join(', '); }
       if (!state.userCat && state.mode === 'new') { state.cat = info.suggest.cat; $('cat').value = state.cat; }
-      state.preview = 'graph'; state.variant = undefined;
-      $('fromFileNote').textContent = 'Read from the file: every component, parameter and wire at its real position on the canvas.';
+      if (!(state.mode === 'existing' && state.recipe)) state.recipe = R.recipe(info, state.fileName);
+      if (state.mode === 'new' || !fromFile()) { state.preview = 'composed'; state.variant = undefined; }
+      $('fromFileNote').textContent = 'Made from the file: a geometry sketch assembled from the components it uses (adjust it on the right), and its wiring diagram with every component and wire at its real position.';
+      fillAdjust();
     } catch (e) {
       if (my !== reqId) return;
-      state.info = null; state.graph = null;
+      state.info = null; state.graph = null; state.recipe = null;
       $('fileInfo').textContent = 'Could not read the file: ' + e.message;
       $('fromFileNote').textContent = 'This file could not be read, so pick a drawn animation below.';
-      if (state.preview === 'graph') { state.preview = 'isoSurface'; state.variant = undefined; }
+      if (fromFile()) { state.preview = 'isoSurface'; state.variant = undefined; }
     }
     mountFromFile(); markPick(); renderCard();
   }
@@ -95,6 +100,7 @@
     if (!state.title) throw new Error('Give the card a title.');
     if (!state.desc) throw new Error('Write a short description.');
     if (state.preview === 'graph' && !state.graph) throw new Error('The wiring diagram needs the file: choose the .gh itself, or pick a drawn animation.');
+    if (state.preview === 'composed' && !state.recipe) throw new Error('The generated sketch needs the file: choose the .gh itself, or pick a drawn animation.');
   }
   function download(name, data) {
     const blob = data instanceof Blob ? data : new Blob([data], { type: 'text/plain' });
@@ -117,7 +123,7 @@
     const old = host.querySelector('canvas'); if (old) P.unmount(old);
     host.innerHTML = S.cardHTML(d, 0);
     const cv = host.querySelector('canvas');
-    if (cv) P.mount(cv, state.preview, { seed: 3, variant: state.variant, graph: state.preview === 'graph' ? state.graph : undefined });
+    if (cv) P.mount(cv, state.preview, { seed: 3, variant: state.variant, graph: state.preview === 'graph' ? state.graph : undefined, recipe: state.preview === 'composed' ? state.recipe : undefined });
     const size = host.querySelector('.size');
     if (size) size.textContent = state.file ? S.fmtSize(state.file.size) : '';
     host.querySelector('.dl').addEventListener('click', (e) => e.preventDefault());
@@ -126,11 +132,30 @@
 
   /* ----- picker ----- */
   function mountFromFile() {
-    const cv = $('pickFile').querySelector('canvas');
-    P.unmount(cv);
-    if (state.graph) P.mount(cv, 'graph', { seed: 5, graph: state.graph });
-    else { const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); }
-    $('pickFile').disabled = !state.graph;
+    const cv = $('pickFile').querySelector('canvas'), cc = $('pickComposed').querySelector('canvas');
+    P.unmount(cv); P.unmount(cc);
+    if (state.graph) P.mount(cv, 'graph', { seed: 5, graph: state.graph }); else cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    if (state.recipe) P.mount(cc, 'composed', { seed: 5, recipe: state.recipe }); else cc.getContext('2d').clearRect(0, 0, cc.width, cc.height);
+    $('pickFile').disabled = !state.graph; $('pickComposed').disabled = !state.recipe;
+    $('adjust').hidden = !state.recipe;
+  }
+  const G2 = P.G.composed;
+  function fillAdjust() {
+    const rc = state.recipe; if (!rc) return;
+    $('rcBase').innerHTML = G2.bases.map((b) => `<option value="${b}"${b === rc.base ? ' selected' : ''}>${b}</option>`).join('');
+    $('rcPattern').innerHTML = G2.patterns.map((b) => `<option value="${b === null ? '' : b}"${b === rc.pattern ? ' selected' : ''}>${b === null ? 'none' : b}</option>`).join('');
+    $('rcOps').innerHTML = G2.ops.map((o) => `<label><input type="checkbox" data-op="${o}"${rc.ops.includes(o) ? ' checked' : ''}><span>${o}</span></label>`).join('');
+    $('rcOverlay').innerHTML = G2.overlays.map((o) => `<label><input type="checkbox" data-ov="${o}"${rc.overlay.includes(o) ? ' checked' : ''}><span>${o}</span></label>`).join('');
+    $('rcDensity').value = rc.density;
+  }
+  function readAdjust() {
+    const rc = state.recipe; if (!rc) return;
+    rc.base = $('rcBase').value; rc.pattern = $('rcPattern').value || null;
+    rc.ops = [...$('rcOps').querySelectorAll('input:checked')].map((i) => i.dataset.op);
+    rc.overlay = [...$('rcOverlay').querySelectorAll('input:checked')].map((i) => i.dataset.ov);
+    rc.density = Number($('rcDensity').value);
+    state.preview = 'composed'; state.variant = undefined;
+    mountFromFile(); markPick(); renderCard();
   }
   function buildPicker() {
     const pk = $('picker');
@@ -144,22 +169,28 @@
       markPick(); renderCard();
     });
     $('pickFile').addEventListener('click', () => { if (!state.graph) return; state.preview = 'graph'; state.variant = undefined; markPick(); renderCard(); });
+    $('pickComposed').addEventListener('click', () => { if (!state.recipe) return; state.preview = 'composed'; state.variant = undefined; markPick(); renderCard(); });
+    $('adjust').addEventListener('change', readAdjust);
+    $('rcDensity').addEventListener('input', readAdjust);
+    $('rcReseed').addEventListener('click', () => { if (!state.recipe) return; state.recipe.seed = Math.floor(Math.random() * 100000); readAdjust(); });
   }
   function markPick() {
     document.querySelectorAll('#picker .pick').forEach((b) => {
       const [type, variant] = P.catalog[Number(b.dataset.i)];
       const v = variant === null ? undefined : variant;
-      b.classList.toggle('is-selected', state.preview !== 'graph' && type === state.preview && String(v) === String(state.variant));
-      b.classList.toggle('is-suggested', !!(state.info && state.preview === 'graph' && type === state.info.suggest.preview && (v === undefined || String(v) === String(state.info.suggest.variant))));
+      b.classList.toggle('is-selected', !fromFile() && type === state.preview && String(v) === String(state.variant));
+      b.classList.toggle('is-suggested', !!(state.info && fromFile() && type === state.info.suggest.preview && (v === undefined || String(v) === String(state.info.suggest.variant))));
     });
     $('pickFile').classList.toggle('is-selected', state.preview === 'graph');
+    $('pickComposed').classList.toggle('is-selected', state.preview === 'composed');
   }
 
   /* ----- form wiring ----- */
   function loadExisting(file) {
     const d = S.DATA.find((x) => x.file === file); if (!d) return;
     state.fileName = d.file; state.title = d.title; state.cat = d.cat; state.tags = d.tags.slice(); state.desc = d.desc;
-    state.preview = d.preview; state.variant = d.variant; state.graph = null; state.info = null; state.userTags = true; state.userCat = true;
+    state.preview = d.preview; state.variant = d.variant; state.graph = null; state.info = null; state.recipe = d.recipe ? JSON.parse(JSON.stringify(d.recipe)) : null; state.userTags = true; state.userCat = true;
+    fillAdjust();
     $('title').value = d.title; $('cat').value = d.cat; $('tags').value = d.tags.join(', '); $('desc').value = d.desc;
     mountFromFile(); markPick(); renderCard();
     readFromSite(d.file);
@@ -174,7 +205,7 @@
       state.mode = r.value;
       $('modeNew').hidden = state.mode !== 'new'; $('modeExisting').hidden = state.mode !== 'existing';
       if (state.mode === 'existing') { state.file = null; loadExisting($('existing').value); }
-      else { state.fileName = $('fileName').value.trim(); state.graph = null; state.info = null; $('fileInfo').textContent = ''; state.userTags = false; state.userCat = false; mountFromFile(); if (state.preview === 'graph') state.preview = 'isoSurface'; markPick(); renderCard(); }
+      else { state.fileName = $('fileName').value.trim(); state.graph = null; state.info = null; state.recipe = null; $('fileInfo').textContent = ''; state.userTags = false; state.userCat = false; mountFromFile(); if (fromFile()) state.preview = 'isoSurface'; markPick(); renderCard(); }
     }));
     $('existing').addEventListener('change', () => loadExisting($('existing').value));
     $('file').addEventListener('change', async () => {
@@ -186,7 +217,7 @@
     });
     $('fileName').addEventListener('input', () => {
       state.fileName = $('fileName').value.trim();
-      if (state.file && state.file.name !== state.fileName) { state.file = null; state.graph = null; state.info = null; $('fileInfo').textContent = ''; mountFromFile(); if (state.preview === 'graph') { state.preview = 'isoSurface'; markPick(); } }
+      if (state.file && state.file.name !== state.fileName) { state.file = null; state.graph = null; state.info = null; state.recipe = null; $('fileInfo').textContent = ''; mountFromFile(); if (fromFile()) { state.preview = 'isoSurface'; markPick(); } }
       if (!$('title').value && state.fileName) { state.title = titleFromFile(state.fileName); $('title').value = state.title; }
       renderCard();
     });

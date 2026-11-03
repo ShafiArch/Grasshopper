@@ -7,7 +7,7 @@ A complete briefing for continuing this project in a fresh session (new Claude a
 - **Owner:** Shafiul Islam (ShafiArch on GitHub), architectural and computational designer.
 - **Repository:** https://github.com/ShafiArch/Grasshopper (public, branch `main`).
 - **Live site:** https://shafiarch.github.io/Grasshopper/ (GitHub Pages, served from the root of `main`).
-- **Add-a-card tool:** https://shafiarch.github.io/Grasshopper/add.html (not linked from the main page).
+- **Add-a-card tool:** https://shafiarch.github.io/Grasshopper/add.html and **edit-a-card tool:** https://shafiarch.github.io/Grasshopper/edit.html (neither is linked from the main page).
 - **Purpose:** a public library of 38 reusable Grasshopper definitions (.gh). The site shows one card per file with a live animated preview, a short description, plugin tags and a download button.
 
 Working with the site requires nothing but a browser and GitHub. There is no build step, no framework, no package manager.
@@ -19,7 +19,7 @@ Two options:
 1. **Edit on GitHub.** Open a file, pencil icon, change, Commit changes. Pages redeploys in one or two minutes.
 2. **Clone and push.** `git clone https://github.com/ShafiArch/Grasshopper.git`, edit, commit, push. For a Claude session to push, the Claude GitHub App must be installed on the ShafiArch account for this repository (https://github.com/apps/claude/installations/select_target) and GitHub must be connected in claude.ai settings. Without that, Claude can read the repo but pushes are refused with 403.
 
-**Cache rule (important):** `index.html` loads the scripts and stylesheet with `?v=N`. Whenever any `.js` or `.css` changes, raise that number in `index.html` or visitors keep the cached old file. The current value is in `index.html` (it was `v=10` at handoff). The tool page `add.html` loads its scripts with a timestamp instead, so it never caches.
+**Cache rule (important):** `index.html` loads the scripts and stylesheet with `?v=N`. Whenever any `.js` or `.css` changes, raise that number in `index.html` or visitors keep the cached old file. The current value is in `index.html` (it was `v=12` at handoff). The tool page `add.html` loads its scripts with a timestamp instead, so it never caches.
 
 To check what Pages is serving: View page source and look at the `?v=` value, or wait a few minutes; the Pages CDN can lag a commit by up to ten minutes.
 
@@ -33,6 +33,8 @@ To check what Pages is serving: View page source and look at the `?v=` value, or
 | `assets/previews.js` | The drawing engine and every preview type. Exposes `window.GHPreviews` with `mount`, `unmount`, `catalog`, `G` (all generators). |
 | `assets/ghgraph.js` | In-browser reader for binary .gh files: inflate, parse the GH_IO archive, extract the wiring graph, derive tags, a suggested schematic, and a geometry recipe. Exposes `window.GHGraph`. |
 | `add.html`, `assets/add.js`, `assets/add.css` | The add-a-card tool. |
+| `edit.html`, `assets/edit.js` | The edit-a-card tool: rename a file, change title, description, category, plugins, or remove a card. |
+| `assets/tooling.js` | Helpers shared by both tools: entry text, add/replace/remove entries in the live `site.js`, cache bump, downloads. |
 | `graphs/*.json` | One wiring diagram per definition, generated from the .gh files (used by `preview: 'graph'`). |
 | `previews/` | Optional real captures (gif, mp4, webm) that replace a drawn animation; see `previews/README.md`. |
 | `GUIDE.md` | User-facing guide to adding cards, changing text, and how animations work. |
@@ -111,6 +113,8 @@ The curve base renders ops specially: extrude gives the deck thickness, offset d
 ## 9. The add-a-card tool (`add.html`)
 
 Flow: choose a .gh (or type its name) or pick an existing card; the file is read in the browser (existing cards fetch their .gh from the site); two from-file animations appear (generated geometry, selected by default, with an Adjust panel and a Vary button; and the wiring diagram), plus the 47 drawn thumbnails with the file's suggestion marked; fill title, category (suggested), plugins (filled from the file), description; the card renders live on the right with the exact entry text. **Download update (zip)** fetches the live `assets/site.js` and `index.html`, inserts or replaces the entry, raises the `?v=` number, and bundles `graphs/<file>.json` when the wiring animation is chosen and the .gh itself when one was picked. The user unzips and drags the files into the repo root on GitHub. The tool never writes to GitHub itself; JSZip and pako load from cdnjs.
+
+**Edit-a-card tool (`edit.html`)**: choose a card, edit file name, title, category, plugins, description, or tick remove. The download rewrites the entry in `site.js` (keyed on the old file name), bumps `index.html`, and when renaming includes the .gh fetched from the site under its new name (plus its `graphs/` json if used). The old file must then be deleted on GitHub by hand; the page links to it.
 
 The entry regex for replacing an existing card assumes the entry's final `}` is followed by `,\n` or `\n  ];`, and that a `recipe` object is written on one line followed by `, tags:`; keep that formatting if editing `DATA` by hand.
 

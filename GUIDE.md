@@ -9,6 +9,7 @@ The site is four files plus the `.gh` files themselves. GitHub Pages serves the 
 | `assets/site.js` | The list of cards (`DATA`), the category names, the filters, the download links. |
 | `assets/previews.js` | The drawing engine and the library of preview animations. |
 | `assets/ghgraph.js` | Reads a .gh file in the browser and extracts its wiring diagram. Used by the add-a-card tool. |
+| `edit.html`, `assets/edit.js`, `assets/tooling.js` | The edit-a-card tool (rename, retitle, redescribe, remove) and helpers shared by both tools. |
 | `graphs/` | One small `.json` per definition holding its wiring diagram (boxes and wires at canvas positions), used by the "from the file" animation. |
 | `previews/` | Optional real screen captures that replace a drawn animation. |
 | `.nojekyll` | Tells GitHub Pages to serve the files without processing. Leave it. |
@@ -26,6 +27,10 @@ The quickest way to add or change a card is the tool page at **add.html** (https
 5. Unzip, then on GitHub click Add file, Upload files, drag in `index.html`, the `assets` folder and the .gh file, and commit.
 
 The tool reads the live `site.js` and `index.html` from the site each time, so it always edits the current versions. It never writes to the repository itself; the upload is the commit.
+
+## The edit-a-card tool
+
+To rename a file, change a card's title, description, category or plugins, or remove a card, use **edit.html** (https://shafiarch.github.io/Grasshopper/edit.html). Pick the card, edit the fields, and download the update. When you change the file name, the zip contains the .gh under its new name (fetched from the site) and `site.js` already points at it; after uploading, delete the old file on GitHub (the page links straight to it). The card's animation is kept as it is; to change that, use Add a card with "Existing card".
 
 The manual route is below if you prefer editing on GitHub directly.
 

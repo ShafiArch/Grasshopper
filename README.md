@@ -1,6 +1,6 @@
 # Grasshopper Workflow Collection
 
-A curated collection of reusable Grasshopper workflows developed over four years, supporting parametric design, environmental analysis, and computational design exploration.
+A working collection of Grasshopper definitions gathered from academic, professional and research work, kept for the parts that proved reusable: parametric systems, form-finding, environmental analysis, optimization and infrastructure geometry.
 
 This repository brings together selected Grasshopper definitions created across academic, professional, and research contexts. The workflows are designed to be modular, adaptable, and reusable, enabling rapid design iteration and informed decision-making at different stages of architectural design.
 
@@ -20,16 +20,15 @@ To add a definition, use the tool page at `add.html` on the site, or commit the 
 - Computational thinking applied to architectural problems  
 
 ## About
-These files represent distilled workflows rather than project-specific scripts. They are intended as a **working library**—to be adapted, extended, and integrated into broader computational design pipelines rather than used as fixed solutions.
+These files represent distilled workflows rather than project-specific scripts. They are intended as a **working library**, to be adapted, extended, and integrated into broader computational design pipelines.
 
 ## Tools
 - Rhino + Grasshopper  
 - Parametric modeling techniques  
 - Data-driven and logic-based design methods  
 
-## Author
+## Contributor
 **Shafiul Islam**  
-Architectural & Computational Designer  
 MS Design Technology, University of Washington  
 
 🌐 Portfolio: https://shafiarch.github.io/shafiul-architecture-portfolio/

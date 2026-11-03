@@ -903,6 +903,186 @@
     }
   };
 
+  /* ---------- general-purpose types (for new definitions) ---------- */
+
+  G.isoSurface = {
+    view: { el: 0.42, spin: 0.1, zoom: 0.46 },
+    step(t) {
+      const f = (u, v) => { const x = lerp(-1, 1, u), y = lerp(-1, 1, v); return [x, y, 0.3 * Math.sin(x * 1.9 + t * 0.4) * Math.cos(y * 1.6) + 0.12 * Math.sin((x + y) * 2.5 - t * 0.3)]; };
+      const out = surfaceLines(f, 16, 16, { w: 0.85, a: 0.8 });
+      out.push(...surfaceLines(f, 4, 4, { w: 1.3 }));
+      return out;
+    }
+  };
+
+  G.twistTower = {
+    view: { el: 0.3, spin: 0.12, zoom: 0.4, yc: 0.58 },
+    step(t) {
+      const out = [], n = 14, tw = 0.9 + 0.5 * Math.sin(t * 0.35), corners = [];
+      for (let k = 0; k <= n; k++) {
+        const z = -0.85 + k * 0.12, a = tw * (k / n) * 1.1, s = 0.42 * (1 - 0.25 * (k / n)), pts = [];
+        for (let c = 0; c < 4; c++) { const b = a + c * Math.PI / 2 + Math.PI / 4; pts.push([s * Math.SQRT2 * Math.cos(b), s * Math.SQRT2 * Math.sin(b), z]); }
+        out.push(L(pts, { closed: true, w: k === 0 || k === n ? 1.3 : 0.9 }));
+        corners.push(pts);
+      }
+      for (let c = 0; c < 4; c++) out.push(L(corners.map((p) => p[c]), { w: 1.1 }));
+      out.push(L([[0, 0, -0.85], [0, 0, -0.85 + n * 0.12]], { a: 0.3, dash: [0.02, 0.02] }));
+      out.push(...groundGrid(5, 2.0, { a: 0.1 }).map((l) => { l.pts = l.pts.map((p) => [p[0], p[1], -0.85]); return l; }));
+      return out;
+    }
+  };
+
+  G.facadePanels = {
+    view: { el: 0.22, spin: 0, zoom: 0.46 },
+    step(t) {
+      const nx = 10, nz = 6, cs = 0.16, out = [];
+      for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+        const x0 = (i - nx / 2) * cs, z0 = (j - nz / 2) * cs, x1 = x0 + cs, z1 = z0 + cs;
+        out.push(L([[x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1]], { closed: true, a: 0.35, w: 0.8 }));
+        const open = 0.5 + 0.5 * Math.sin(t * 0.9 - i * 0.55 - j * 0.35), ang = open * 1.2, d = cs * 0.9;
+        const hx = x0 + cs * 0.05, y1 = -d * Math.sin(ang), x2 = hx + d * Math.cos(ang);
+        out.push(L([[hx, 0, z0 + 0.012], [x2, y1, z0 + 0.012], [x2, y1, z1 - 0.012], [hx, 0, z1 - 0.012]], { closed: true, w: 1.0, c: open > 0.85 ? 'accent' : 'ink' }));
+      }
+      out.push(L([[-nx / 2 * cs, 0, -nz / 2 * cs], [nx / 2 * cs, 0, -nz / 2 * cs], [nx / 2 * cs, 0, nz / 2 * cs], [-nx / 2 * cs, 0, nz / 2 * cs]], { closed: true, w: 1.3 }));
+      return { items: out, az: 0.5 + 0.3 * Math.sin(t * 0.2) };
+    }
+  };
+
+  G.terrain = {
+    view: { el: 0.5, spin: 0.08, zoom: 0.44 },
+    init(s, R) { s.h = (x, y) => 0.22 * Math.sin(x * 2.1 + 0.7) * Math.cos(y * 1.7 + 0.3) + 0.14 * Math.sin(x * 4.3 - y * 2.2) + 0.08 * Math.cos(y * 5.1 + x); void R; },
+    step(t, s) {
+      const n = 22, out = [], H = [];
+      for (let i = 0; i <= n; i++) { H[i] = []; for (let j = 0; j <= n; j++) H[i][j] = s.h(lerp(-1, 1, i / n), lerp(-1, 1, j / n)); }
+      const P = (i, j) => [lerp(-1, 1, i / n), lerp(-1, 1, j / n), H[i][j]];
+      for (let i = 0; i <= n; i += 2) out.push(L(Array.from({ length: n + 1 }, (_, j) => P(i, j)), { a: 0.18, w: 0.7 }));
+      for (let j = 0; j <= n; j += 2) out.push(L(Array.from({ length: n + 1 }, (_, i) => P(i, j)), { a: 0.18, w: 0.7 }));
+      const water = -0.1 + 0.16 * Math.sin(t * 0.3);
+      for (let k = 0; k < 9; k++) {
+        const lv = -0.3 + k * 0.08, hot = Math.abs(lv - water) < 0.04, segs = [];
+        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+          const c = [H[i][j], H[i + 1][j], H[i + 1][j + 1], H[i][j + 1]], pts = [];
+          const e = [[0, 1, i, j, i + 1, j], [1, 2, i + 1, j, i + 1, j + 1], [2, 3, i + 1, j + 1, i, j + 1], [3, 0, i, j + 1, i, j]];
+          for (const [a, b, ia, ja, ib, jb] of e) {
+            if ((c[a] - lv) * (c[b] - lv) < 0) { const f = (lv - c[a]) / (c[b] - c[a]); pts.push([lerp(lerp(-1, 1, ia / n), lerp(-1, 1, ib / n), f), lerp(lerp(-1, 1, ja / n), lerp(-1, 1, jb / n), f), lv]); }
+          }
+          if (pts.length >= 2) segs.push([pts[0], pts[1]]);
+          if (pts.length === 4) segs.push([pts[2], pts[3]]);
+        }
+        out.push({ kind: 'segs', segs, w: hot ? 1.4 : 0.95, c: hot ? 'accent' : 'ink', a: hot ? 1 : 0.85 });
+      }
+      out.push(L([[-1, -1, -0.45], [1, -1, -0.45], [1, 1, -0.45], [-1, 1, -0.45]], { closed: true, a: 0.2 }));
+      return out;
+    }
+  };
+
+  G.spaceTruss = {
+    view: { el: 0.35, spin: 0.1, zoom: 0.44 },
+    step(t) {
+      const n = 7, cs = 0.26, d = 0.2, out = [], camber = 0.12 + 0.08 * Math.sin(t * 0.5);
+      const top = (i, j) => { const x = (i - n / 2) * cs, y = (j - n / 2) * cs; return [x, y, 0.2 + camber * (1 - (x * x + y * y) / 1.8)]; };
+      const bot = (i, j) => { const p = top(i + 0.5, j + 0.5); return [p[0], p[1], p[2] - d]; };
+      for (let i = 0; i <= n; i++) { out.push(L(Array.from({ length: n + 1 }, (_, j) => top(i, j)), { w: 1.1 })); out.push(L(Array.from({ length: n + 1 }, (_, j) => top(j, i)), { w: 1.1 })); }
+      for (let i = 0; i < n; i++) { out.push(L(Array.from({ length: n }, (_, j) => bot(i, j)), { w: 0.9, a: 0.7 })); out.push(L(Array.from({ length: n }, (_, j) => bot(j, i)), { w: 0.9, a: 0.7 })); }
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const b = bot(i, j); for (const [di, dj] of [[0, 0], [1, 0], [1, 1], [0, 1]]) out.push(L([b, top(i + di, j + dj)], { a: 0.35, w: 0.7 })); }
+      for (const [i, j] of [[0, 0], [n, 0], [n, n], [0, n]]) { const p = top(i, j); out.push(L([[p[0], p[1], -0.6], p], { w: 1.3 })); }
+      out.push(...groundGrid(5, 2.2, { a: 0.1 }).map((l) => { l.pts = l.pts.map((p) => [p[0], p[1], -0.6]); return l; }));
+      return out;
+    }
+  };
+
+  G.vaultRibs = {
+    view: { el: 0.3, spin: 0.11, zoom: 0.42, yc: 0.56 },
+    step(t) {
+      const out = [], n = 11, len = 2.0, w = 0.75, ribs = [];
+      for (let k = 0; k <= n; k++) {
+        const y = -len / 2 + (k / n) * len, h = 0.5 + 0.2 * Math.sin(y * 2.2 + t * 0.5), pts = [];
+        for (let i = 0; i <= 20; i++) { const a = (i / 20) * Math.PI; pts.push([-w * Math.cos(a), y, -0.45 + h * Math.sin(a)]); }
+        ribs.push(pts); out.push(L(pts, { w: 1.2 }));
+      }
+      for (let i = 0; i <= 20; i += 2) out.push(L(ribs.map((r) => r[i]), { a: 0.45, w: 0.8 }));
+      out.push(L([[-w, -len / 2, -0.45], [-w, len / 2, -0.45]], { w: 1.2 })); out.push(L([[w, -len / 2, -0.45], [w, len / 2, -0.45]], { w: 1.2 }));
+      out.push(...groundGrid(5, 2.4, { a: 0.1 }).map((l) => { l.pts = l.pts.map((p) => [p[0], p[1], -0.45]); return l; }));
+      return out;
+    }
+  };
+
+  G.spiralStair = {
+    view: { el: 0.28, spin: 0.14, zoom: 0.42, yc: 0.55 },
+    step(t) {
+      const out = [], n = 26, r0 = 0.16, r1 = 0.75, rise = 1.5, turns = 1.5 + 0.3 * Math.sin(t * 0.3), outer = [], inner = [];
+      for (let k = 0; k <= n; k++) {
+        const a = (k / n) * TAU * turns, z = -0.75 + (k / n) * rise, a2 = ((k + 1) / n) * TAU * turns;
+        const p0 = [r0 * Math.cos(a), r0 * Math.sin(a), z], p1 = [r1 * Math.cos(a), r1 * Math.sin(a), z];
+        outer.push(p1); inner.push(p0);
+        if (k < n) { const q1 = [r1 * Math.cos(a2), r1 * Math.sin(a2), z], q0 = [r0 * Math.cos(a2), r0 * Math.sin(a2), z]; out.push(L([p0, p1, q1, q0], { closed: true, w: 1.0 })); }
+      }
+      out.push(L([[0, 0, -0.8], [0, 0, 0.8]], { w: 1.6 }));
+      out.push(L(outer.map((p) => [p[0], p[1], p[2] + 0.32]), { w: 1.0, a: 0.7 }));
+      for (let k = 0; k <= n; k += 2) out.push(L([outer[k], [outer[k][0], outer[k][1], outer[k][2] + 0.32]], { a: 0.5, w: 0.8 }));
+      out.push(L(circlePts([0, 0, -0.78], 0.95, 48, 'z'), { closed: true, a: 0.18 }));
+      return out;
+    }
+  };
+
+  G.vectorField = {
+    view: { el: 0.7, spin: 0.06, zoom: 0.46 },
+    init(s, R) { s.P = Array.from({ length: 160 }, () => ({ p: [R() * 2 - 1, R() * 2 - 1], age: R() * 5 })); s.lastT = null; },
+    step(t, s, R) {
+      const dt = s.lastT === null ? 0.016 : clamp(t - s.lastT, 0, 0.05); s.lastT = t;
+      const A = [0.5 * Math.cos(t * 0.3), 0.5 * Math.sin(t * 0.3)], B = [-A[0], -A[1]];
+      const vel = (p) => { const f = (c, sgn) => { const dx = p[0] - c[0], dy = p[1] - c[1], r2 = dx * dx + dy * dy + 0.03; return [sgn * dx / r2 * 0.08, sgn * dy / r2 * 0.08]; }; const a = f(A, 1), b = f(B, -1); return [a[0] + b[0] - 0.02 * p[1], a[1] + b[1] + 0.02 * p[0]]; };
+      const out = [L([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]], { closed: true, a: 0.25 })];
+      for (const q of s.P) {
+        const v = vel(q.p), sp = Math.hypot(v[0], v[1]);
+        q.p[0] += v[0] * dt * 2; q.p[1] += v[1] * dt * 2; q.age += dt;
+        if (Math.abs(q.p[0]) > 1 || Math.abs(q.p[1]) > 1 || q.age > 6 || Math.hypot(q.p[0] - B[0], q.p[1] - B[1]) < 0.06) { q.p = [R() * 2 - 1, R() * 2 - 1]; q.age = 0; }
+        const k = Math.min(0.12, 0.05 / (sp + 0.02)) * Math.min(1, q.age * 3);
+        out.push(L([[q.p[0] - v[0] * k * 4, q.p[1] - v[1] * k * 4, 0], [q.p[0], q.p[1], 0]], { a: 0.6, w: 0.9 }));
+      }
+      out.push(D([A[0], A[1], 0.01], { c: 'accent', r: 3 })); out.push(L(circlePts([B[0], B[1], 0.01], 0.06, 20, 'z'), { c: 'accent', closed: true, w: 1.0 }));
+      return out;
+    }
+  };
+
+  G.waffle = {
+    view: { el: 0.4, spin: 0.1, zoom: 0.44 },
+    step(t) {
+      const out = [], n = 8, f = (x, y) => 0.35 * Math.exp(-(x * x + y * y) * 1.2) + 0.12 * Math.sin(x * 2 + t * 0.4) * Math.cos(y * 2), base = -0.4;
+      const gap = 0.35 + 0.35 * Math.sin(t * 0.3) * 0;
+      for (let k = 0; k <= n; k++) {
+        const x = lerp(-0.9, 0.9, k / n), y = lerp(-0.9, 0.9, k / n), ex = 0.06 * (0.5 + 0.5 * Math.sin(t * 0.4)) * (k - n / 2);
+        const sx = []; for (let i = 0; i <= 20; i++) { const yy = lerp(-0.9, 0.9, i / 20); sx.push([x + ex, yy, f(x, yy)]); }
+        out.push(L(sx.concat([[x + ex, 0.9, base], [x + ex, -0.9, base]]), { closed: true, w: 1.0 }));
+        const sy = []; for (let i = 0; i <= 20; i++) { const xx = lerp(-0.9, 0.9, i / 20); sy.push([xx, y + ex, f(xx, y)]); }
+        out.push(L(sy.concat([[0.9, y + ex, base], [-0.9, y + ex, base]]), { closed: true, w: 1.0, a: 0.75 }));
+      }
+      void gap;
+      out.push(...groundGrid(4, 2.2, { a: 0.1 }).map((l) => { l.pts = l.pts.map((p) => [p[0], p[1], base - 0.1]); return l; }));
+      return out;
+    }
+  };
+
+  /* Catalogue used by the add-a-card tool: every type, with its variants and a plain description. */
+  const CATALOG = [
+    ['surfVoronoi', null, 'Voronoi on a surface'], ['attrVoronoi', null, 'Voronoi with attractor'], ['volVoronoi', null, 'Volume Voronoi'],
+    ['diagrid', null, 'Diagrid on a surface'], ['diagridExport', null, 'Diagrid flattening'], ['hex', null, 'Hexagons on a dome'],
+    ['isoSurface', null, 'Surface with isocurves'], ['terrain', null, 'Terrain contours'], ['waffle', null, 'Waffle slices'],
+    ['cloth', null, 'Mesh under gravity'], ['kAnchor', null, 'Mesh with moving anchors'], ['drape', null, 'Drape over a sphere'],
+    ['saddle', null, 'Four-point tensile sail'], ['tent', null, 'Mast tensile canopy'], ['spaceTruss', null, 'Space truss'], ['vaultRibs', null, 'Vault ribs'],
+    ['foldedPlate', null, 'Segmented folded plate'], ['circularFold', 1, 'Radial folded plate'], ['circularFold', 2, 'Radial folded plate, oculus'],
+    ['shell', null, 'Shell segments'], ['twistTower', null, 'Twisting tower'], ['spiralStair', null, 'Spiral stair'], ['stadium', null, 'Stadium panels'],
+    ['facadePanels', null, 'Opening facade panels'], ['jitter', null, 'Jittered panel grid'], ['attractorScreen', null, 'Perforated screen'],
+    ['massing', 'box', 'Massing with sun: box'], ['massing', 'L', 'Massing with sun: L-shape'], ['massing', 'bar', 'Massing with sun: bar'],
+    ['massing', 'tower', 'Massing with sun: tower'], ['massing', 'pitched', 'Massing with sun: pitched roof'],
+    ['thermalWall', 'insulator', 'Wall section, insulation study'], ['thermalWall', 'workflow', 'Wall section, heat flow'],
+    ['airflow', null, 'Indoor airflow'], ['daylight', null, 'Daylight fins and sensors'],
+    ['path', null, 'Shortest path search'], ['printer', null, 'Best point on a floor plate'], ['connection', null, 'Best point on a line'],
+    ['vectorField', null, 'Vector field particles'], ['branching', null, 'Branching growth'], ['units', null, 'Unit aggregation'],
+    ['elevatedRoad', null, 'Elevated road'], ['elevatedRoad', 'piers', 'Pier placement'], ['lanes', null, 'Road lane marks'], ['osmMap', null, 'Street map reveal'],
+    ['planExtrude', null, 'Plan extruding to massing'], ['auditorium', null, 'Auditorium sightlines']
+  ];
+
   /* ---------- renderer ---------- */
   const DEF_VIEW = { az: -0.65, el: 0.5, spin: 0.1, zoom: 0.45, yc: 0.52, persp: 0 };
   const sketches = new Set();
@@ -958,6 +1138,12 @@
           const q = pr(it.p);
           ctx.beginPath(); ctx.arc(q[0], q[1], it.r || 2, 0, TAU);
           ctx.fillStyle = col; ctx.fill();
+          continue;
+        }
+        if (it.kind === 'segs') {
+          ctx.beginPath();
+          for (const sg of it.segs) { const a = pr(sg[0]), b = pr(sg[1]); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+          ctx.strokeStyle = col; ctx.lineWidth = it.w || 1; ctx.setLineDash([]); ctx.stroke();
           continue;
         }
         const pts = it.pts; if (!pts || pts.length < 2) continue;
@@ -1017,6 +1203,10 @@
   }
 
   function setMotion() { kick(); }
+  function unmount(canvas) {
+    const s = canvas.__sketch; if (!s) return;
+    sketches.delete(s); if (io) io.unobserve(canvas); canvas.__sketch = null;
+  }
 
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', () => { for (const s of sketches) s.resize(); kick(); });
@@ -1027,7 +1217,7 @@
     }
   }
 
-  const api = { mount, setMotion, reducedMotion: () => false, types: Object.keys(G), G, Sketch, readColors };
+  const api = { mount, unmount, setMotion, reducedMotion: () => false, types: Object.keys(G), catalog: CATALOG, G, Sketch, readColors };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window.GHPreviews = api;
 })();

@@ -10,7 +10,7 @@ The collection has a website: **https://shafiarch.github.io/Grasshopper/**
 
 Every definition is shown as a card with a live schematic preview and a download button. The site is static (`index.html` plus `assets/`), served by GitHub Pages from this repository, so the download links point straight at the `.gh` files here.
 
-To add a definition: commit the `.gh` file to the repository root and add an entry to the `DATA` list in `assets/site.js` (title, category, short description, plugins used, and which preview animation to draw). Real captures can replace the drawn previews; see `previews/README.md`.
+To add a definition, use the tool page at `add.html` on the site, or commit the `.gh` file to the repository root and add an entry to the `DATA` list in `assets/site.js` by hand. See `GUIDE.md` for everything about how the site works.
 
 ## Focus Areas
 - Parametric and rule-based design systems  

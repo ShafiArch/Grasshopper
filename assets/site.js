@@ -136,7 +136,7 @@
             <span class="dl-label">Download .gh</span>
             <span class="dl-arrow" aria-hidden="true">&#8595;</span>
           </a>
-          <span class="size">${fmtSize(SIZES[d.file] || 0)}</span>
+          <span class="size" data-file="${esc(d.file)}">${SIZES[d.file] ? fmtSize(SIZES[d.file]) : ''}</span>
         </footer>
       </article>`;
   }
@@ -178,8 +178,19 @@
     const year = document.getElementById('year');
     if (year) year.textContent = String(new Date().getFullYear());
     document.querySelectorAll('[data-repo]').forEach((a) => { a.href = REPO + (a.dataset.repo || ''); });
+
+    /* File sizes are read from the files themselves once the page is up, so a
+       new .gh needs no size entry; the SIZES table only gives a first value. */
+    if (typeof fetch === 'function' && location.protocol !== 'file:') {
+      grid.querySelectorAll('.size[data-file]').forEach((el) => {
+        fetch(encodeURI(el.dataset.file), { method: 'HEAD' })
+          .then((r) => { const n = Number(r.headers.get('content-length')); if (r.ok && n > 0) el.textContent = fmtSize(n); })
+          .catch(() => { /* leave whatever is shown */ });
+      });
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
   window.GH_DATA = DATA;
+  window.GH_SITE = { DATA, CATEGORIES, cardHTML, catName, fmtSize };
 })();

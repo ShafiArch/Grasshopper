@@ -58,7 +58,7 @@
       desc: 'Compares insulation options through Honeybee: wall constructions swapped in turn, with heat flow and interior conditions reported for each.' },
     { file: 'Honeybee_Thermal_Workfolw_2023.gh', title: 'Thermal Workflow', cat: 'environment', preview: 'thermalWall', variant: 'workflow', tags: ['Honeybee'],
       desc: 'A streamlined Honeybee thermal workflow from the 2023 toolset: a short path from massing to zone temperatures and loads.' },
-    { file: 'Impact_Analysis_of_Metal_Roofing_Honeybee.gh', title: 'Metal Roofing Impact', cat: 'environment', preview: 'massing', variant: 'pitched', tags: ['Honeybee'],
+    { file: 'Honeybee_Energy_Simulation_Variable_Roof_color.gh', title: 'Energy Simulation: Variable Roof', cat: 'environment', preview: 'massing', variant: 'pitched', tags: ['Honeybee'],
       desc: 'Tests how a metal roof changes building performance: roof construction, reflectance and insulation varied in Honeybee and the energy impact compared.' },
     { file: 'Indoorairflow_Butterfly_Workflow.gh', title: 'Indoor Airflow', cat: 'environment', preview: 'airflow', tags: ['Butterfly', 'OpenFOAM'],
       desc: 'Indoor CFD with Butterfly: a room, its openings and boundary conditions passed to OpenFOAM, with velocity and pressure brought back into Grasshopper.' },

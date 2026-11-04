@@ -37,4 +37,4 @@ These files represent distilled workflows rather than project-specific scripts. 
 **Shafiul Islam**  
 MS Design Technology, University of Washington  
 
-🌐 Portfolio: https://shafiarch.github.io/shafiul-architecture-portfolio/
+🌐 Portfolio: https://shafiarch.github.io/works_shafi/

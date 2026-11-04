@@ -24,12 +24,12 @@
   /* Display order of the cards: file names, first to last. Cards not listed
      here follow, alphabetically by title. The order.html tool rewrites this. */
   const ORDER = [
-    '3D_Automation_fromPlan.gh',
+    'Kangaroo_Example.gh',
     'Auditorium_Section.gh',
     'Circular Folded Plate.gh',
     'Circular_Folded_plate.gh',
+    '3D_Automation_fromPlan.gh',
     'Daylight_optimization_Octopus_TTtoolbox_ClimateStudio.gh',
-    'Kangaroo_Example.gh',
     'Diagrid_Export.gh',
     'Diagrid_in_surface.gh',
     'Elevated_Road_Geometry_from_Alignment.gh',

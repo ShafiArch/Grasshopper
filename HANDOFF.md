@@ -135,7 +135,11 @@ The entry regex for replacing an existing card assumes the entry's final `}` is 
 - Possible: search box, per-card detail page, OG image, a "Vary" seed shown on the card, a Rhino-side script that exports a GIF of the viewport named after the .gh so `previews/` fills itself.
 - The two Circular Folded Plate files are different definitions kept side by side; the two Galapagos path files are identical.
 
-## 12. Quick commands
+## 12. Licensing
+
+Definitions (`.gh`, `graphs/`): © 2026 Shafiul Islam, CC BY 4.0 (`LICENSE-DEFINITIONS.md`). Website code: MIT (`LICENSE`). The README and the site footer state both. Keep these notices when restructuring.
+
+## 13. Quick commands
 
 ```
 # clone

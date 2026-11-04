@@ -137,7 +137,7 @@ The entry regex for replacing an existing card assumes the entry's final `}` is 
 
 ## 12. Licensing
 
-Definitions (`.gh`, `graphs/`): © 2026 Shafiul Islam, CC BY 4.0 (`LICENSE-DEFINITIONS.md`). Website code: MIT (`LICENSE`). The README and the site footer state both. Keep these notices when restructuring.
+Definitions (`.gh`, `graphs/`): © 2026 Shafiul Islam, CC BY 4.0 (`LICENSE-DEFINITIONS.md`). Website code: MIT (`LICENSE`). The README and the site footer state both. Keep these notices when restructuring. `AUTHOR-SETTINGS.md` is the template for Grasshopper's Preferences > Author page, which stamps new .gh files with the credit; files saved before it was set carry no author block (none of the original 38 do).
 
 ## 13. Quick commands
 

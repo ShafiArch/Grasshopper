@@ -31,6 +31,7 @@ These files represent distilled workflows rather than project-specific scripts. 
 
 - The Grasshopper definitions (`.gh` files) are © 2026 Shafiul Islam, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): use and adapt them freely, with credit. See `LICENSE-DEFINITIONS.md` for the suggested credit line.
 - The website code is licensed under the [MIT License](LICENSE).
+- `AUTHOR-SETTINGS.md` holds the author block to set once in Grasshopper's preferences so new files carry the credit inside them.
 
 ## Contributor
 **Shafiul Islam**  

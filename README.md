@@ -27,6 +27,11 @@ These files represent distilled workflows rather than project-specific scripts. 
 - Parametric modeling techniques  
 - Data-driven and logic-based design methods  
 
+## License
+
+- The Grasshopper definitions (`.gh` files) are © 2026 Shafiul Islam, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): use and adapt them freely, with credit. See `LICENSE-DEFINITIONS.md` for the suggested credit line.
+- The website code is licensed under the [MIT License](LICENSE).
+
 ## Contributor
 **Shafiul Islam**  
 MS Design Technology, University of Washington  

@@ -65,7 +65,7 @@
     const live = await T.fetchLive();
     let site;
     if (st.remove) site = T.removeEntry(live.site, st.orig.file);
-    else site = T.replaceEntry(live.site, st.orig.file, T.entryText(st.d));
+    else site = T.replaceEntry(live.site, st.orig.file, T.entryText(st.d), st.d.file);
     return { site, index: T.bumpIndex(live.index) };
   }
 

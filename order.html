@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order the cards</title>
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?t=0">
+  <link rel="stylesheet" href="assets/add.css?t=0">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body class="tool">
+
+  <header class="top">
+    <a class="top-name" href="index.html">Grasshopper Workflow Collection</a>
+    <nav class="top-nav">
+      <a href="index.html">Site</a>
+      <a href="add.html">Add a card</a>
+      <a href="edit.html">Edit a card</a>
+      <a href="https://github.com/ShafiArch/Grasshopper" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="tool-intro">
+    <h1 class="tool-title">Order the cards</h1>
+    <p class="tool-lede">Drag cards into the order you want them on the site, first at the top. The arrows do the same from the keyboard. Download the update and drag the two files into the repository. Nothing on this page touches the repository by itself.</p>
+  </section>
+
+  <main class="tool-main order-main">
+    <section class="order-pane">
+      <div class="order-tools">
+        <button type="button" class="dl dl-quiet" id="sortTitle"><span class="dl-label">Sort by title</span></button>
+        <button type="button" class="dl dl-quiet" id="sortCat"><span class="dl-label">Group by category</span></button>
+        <button type="button" class="dl dl-quiet" id="reverse"><span class="dl-label">Reverse</span></button>
+        <button type="button" class="dl dl-quiet" id="reset"><span class="dl-label">Back to current order</span></button>
+        <label class="field order-filter"><span>Jump to</span><input type="text" id="find" placeholder="type part of a title"></label>
+      </div>
+      <ol class="order-list" id="list"></ol>
+    </section>
+
+    <aside class="tool-side">
+      <p class="hint" id="status">The update contains <code>assets/site.js</code> with the new order and an <code>index.html</code> with the cache number raised.</p>
+      <div class="actions">
+        <button type="button" class="dl" id="dlZip"><span class="dl-label">Download update (zip)</span><span class="dl-arrow" aria-hidden="true">&#8595;</span></button>
+        <button type="button" class="dl dl-quiet" id="dlSite"><span class="dl-label">site.js only</span></button>
+        <button type="button" class="dl dl-quiet" id="dlIndex"><span class="dl-label">index.html only</span></button>
+      </div>
+      <ol class="howto">
+        <li>Unzip the download.</li>
+        <li>Open the repository on GitHub, click Add file, then Upload files, drag in <code>index.html</code> and the <code>assets</code> folder. Commit.</li>
+        <li>Wait a couple of minutes, then refresh the site.</li>
+      </ol>
+      <p class="hint" id="summary"></p>
+      <p class="hint">Preview of the first row</p>
+      <div class="order-preview" id="preview"></div>
+    </aside>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    (function () {
+      const t = Date.now(), files = ['assets/previews.js', 'assets/site.js', 'assets/tooling.js', 'assets/order.js'];
+      (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?t=' + t; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
+    })();
+  </script>
+</body>
+</html>

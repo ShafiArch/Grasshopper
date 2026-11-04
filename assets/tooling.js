@@ -37,20 +37,37 @@
     const start = src.indexOf('const DATA = ['); if (start < 0) throw new Error('DATA list not found in site.js.');
     const end = src.indexOf('\n  ];', start); if (end < 0) throw new Error('End of DATA list not found in site.js.');
     const before = src.slice(0, end), empty = /\[\s*$/.test(before);
-    return before + (empty ? '\n    ' : ',\n    ') + entry + src.slice(end);
+    return orderAdd(before + (empty ? '\n    ' : ',\n    ') + entry + src.slice(end), file);
   }
   /* Replace the entry whose file is oldFile with entry (which may carry a new file name). */
-  function replaceEntry(src, oldFile, entry) {
+  function replaceEntry(src, oldFile, entry, newFile) {
     const re = entryRe(oldFile);
     if (!re.test(src)) throw new Error('The entry for ' + oldFile + ' was not found in site.js.');
-    return src.replace(re, entry);
+    const out = src.replace(re, entry);
+    return newFile && newFile !== oldFile ? orderRename(out, oldFile, newFile) : out;
   }
   /* Remove the entry whose file is file, tidying the comma. */
   function removeEntry(src, file) {
     const re = new RegExp("(,\\n    )?\\{ file: '" + escRe(file) + "'[\\s\\S]*?\\}(?=,\\n|\\n  \\];)(,)?");
     if (!re.test(src)) throw new Error('The entry for ' + file + ' was not found in site.js.');
-    return src.replace(re, (m, leadComma, trailComma) => (leadComma && trailComma ? ',' : ''));
+    return orderRemove(src.replace(re, (m, leadComma, trailComma) => (leadComma && trailComma ? ',' : '')), file);
   }
+  /* ----- the ORDER list (display order of cards) ----- */
+  const ORDER_RE = /const ORDER = \[([\s\S]*?)\];/;
+  function orderList(src) {
+    const m = src.match(ORDER_RE); if (!m) return null;
+    const out = []; m[1].replace(/'((?:[^'\\]|\\.)*)'/g, (mm, f) => { out.push(f.replace(/\\(.)/g, '$1')); return mm; });
+    return out;
+  }
+  function setOrder(src, files) {
+    if (!ORDER_RE.test(src)) return src;
+    const body = files.length ? '\n' + files.map((f) => '    ' + q(f)).join(',\n') + '\n  ' : '';
+    return src.replace(ORDER_RE, 'const ORDER = [' + body + '];');
+  }
+  function orderAdd(src, file) { const o = orderList(src); if (!o || o.includes(file)) return src; o.push(file); return setOrder(src, o); }
+  function orderRename(src, oldFile, newFile) { const o = orderList(src); if (!o) return src; const i = o.indexOf(oldFile); if (i < 0) return orderAdd(src, newFile); if (oldFile !== newFile) o[i] = newFile; return setOrder(src, o); }
+  function orderRemove(src, file) { const o = orderList(src); if (!o) return src; return setOrder(src, o.filter((f) => f !== file)); }
+
   function bumpIndex(src) {
     let max = 0; src.replace(/\?v=(\d+)/g, (m, n) => { max = Math.max(max, Number(n)); return m; });
     return src.replace(/\?v=\d+/g, '?v=' + (max + 1));
@@ -65,5 +82,5 @@
     return { site, index };
   }
 
-  window.GHTool = { q, base, graphPath, titleFromFile, entryText, recipeText, fetchText, fetchLive, addEntry, replaceEntry, removeEntry, bumpIndex, download };
+  window.GHTool = { q, base, graphPath, titleFromFile, entryText, recipeText, fetchText, fetchLive, addEntry, replaceEntry, removeEntry, orderList, setOrder, bumpIndex, download };
 })();

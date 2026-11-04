@@ -97,3 +97,35 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .pick.is-suggested span::after { content: " (suggested)"; color: var(--accent); }
 @media (max-width: 900px) { .from-file { grid-template-columns: 1fr 1fr; } .adjust { grid-column: 1 / -1; } }
 @media (max-width: 600px) { .from-file { grid-template-columns: 1fr; } }
+
+/* order-the-cards tool */
+.order-main { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); }
+.order-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 10px; margin-bottom: 18px; }
+.order-filter { margin: 0 0 0 auto; max-width: 220px; }
+.order-list { list-style: none; margin: 0; padding: 0; }
+.order-item {
+  display: grid;
+  grid-template-columns: 32px 96px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 6px;
+  border-top: 1px solid var(--rule);
+  cursor: grab;
+  background: var(--paper);
+}
+.order-item:last-child { border-bottom: 1px solid var(--rule); }
+.order-item.is-dragging { opacity: 0.4; }
+.order-item.is-over { box-shadow: inset 0 2px 0 var(--accent); }
+.order-item.is-moved { box-shadow: inset 3px 0 0 var(--accent); }
+.order-num { font-size: 13px; font-stretch: 85%; color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; }
+.order-thumb { display: block; width: 96px; height: 72px; }
+.order-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.order-text strong { font-weight: 500; font-size: 15px; }
+.order-text span { font-size: 12.5px; font-stretch: 88%; color: var(--ink-2); }
+.order-btns { display: flex; gap: 4px; }
+.order-btns button { appearance: none; background: none; border: 1px solid var(--rule); border-radius: 2px; color: var(--ink-2); width: 30px; height: 30px; font: inherit; font-size: 15px; cursor: pointer; }
+.order-btns button:hover { border-color: var(--ink); color: var(--ink); }
+.order-preview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.order-mini canvas { display: block; width: 100%; aspect-ratio: 4 / 3; }
+.order-mini span { display: block; font-size: 12px; font-stretch: 88%; color: var(--ink-2); margin-top: 4px; }
+@media (max-width: 960px) { .order-main { grid-template-columns: 1fr; } }

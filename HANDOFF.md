@@ -7,7 +7,7 @@ A complete briefing for continuing this project in a fresh session (new Claude a
 - **Owner:** Shafiul Islam (ShafiArch on GitHub), architectural and computational designer.
 - **Repository:** https://github.com/ShafiArch/Grasshopper (public, branch `main`).
 - **Live site:** https://shafiarch.github.io/Grasshopper/ (GitHub Pages, served from the root of `main`).
-- **Add-a-card tool:** https://shafiarch.github.io/Grasshopper/add.html and **edit-a-card tool:** https://shafiarch.github.io/Grasshopper/edit.html (neither is linked from the main page).
+- **Add-a-card tool:** https://shafiarch.github.io/Grasshopper/add.html **edit-a-card tool:** https://shafiarch.github.io/Grasshopper/edit.html and **order tool:** https://shafiarch.github.io/Grasshopper/order.html (none is linked from the main page).
 - **Purpose:** a public library of 38 reusable Grasshopper definitions (.gh). The site shows one card per file with a live animated preview, a short description, plugin tags and a download button.
 
 Working with the site requires nothing but a browser and GitHub. There is no build step, no framework, no package manager.
@@ -19,7 +19,7 @@ Two options:
 1. **Edit on GitHub.** Open a file, pencil icon, change, Commit changes. Pages redeploys in one or two minutes.
 2. **Clone and push.** `git clone https://github.com/ShafiArch/Grasshopper.git`, edit, commit, push. For a Claude session to push, the Claude GitHub App must be installed on the ShafiArch account for this repository (https://github.com/apps/claude/installations/select_target) and GitHub must be connected in claude.ai settings. Without that, Claude can read the repo but pushes are refused with 403.
 
-**Cache rule (important):** `index.html` loads the scripts and stylesheet with `?v=N`. Whenever any `.js` or `.css` changes, raise that number in `index.html` or visitors keep the cached old file. The current value is in `index.html` (it was `v=12` at handoff). The tool page `add.html` loads its scripts with a timestamp instead, so it never caches.
+**Cache rule (important):** `index.html` loads the scripts and stylesheet with `?v=N`. Whenever any `.js` or `.css` changes, raise that number in `index.html` or visitors keep the cached old file. The current value is in `index.html` (it was `v=13` at handoff). The tool page `add.html` loads its scripts with a timestamp instead, so it never caches.
 
 To check what Pages is serving: View page source and look at the `?v=` value, or wait a few minutes; the Pages CDN can lag a commit by up to ten minutes.
 
@@ -34,6 +34,7 @@ To check what Pages is serving: View page source and look at the `?v=` value, or
 | `assets/ghgraph.js` | In-browser reader for binary .gh files: inflate, parse the GH_IO archive, extract the wiring graph, derive tags, a suggested schematic, and a geometry recipe. Exposes `window.GHGraph`. |
 | `add.html`, `assets/add.js`, `assets/add.css` | The add-a-card tool. |
 | `edit.html`, `assets/edit.js` | The edit-a-card tool: rename a file, change title, description, category, plugins, or remove a card. |
+| `order.html`, `assets/order.js` | The order tool: drag cards into display order; rewrites `ORDER` in `site.js`. |
 | `assets/tooling.js` | Helpers shared by both tools: entry text, add/replace/remove entries in the live `site.js`, cache bump, downloads. |
 | `graphs/*.json` | One wiring diagram per definition, generated from the .gh files (used by `preview: 'graph'`). |
 | `previews/` | Optional real captures (gif, mp4, webm) that replace a drawn animation; see `previews/README.md`. |
@@ -50,7 +51,7 @@ To check what Pages is serving: View page source and look at the `?v=` value, or
 - Grid: 4 columns at 1500 px and wider, 3 from 1100 to 1500, 2 from 560 to 1100, 1 below. Previews stay 352 px wide on desktop; on phones they fill the column.
 - **Animations always run** on any device, regardless of the OS reduced-motion setting (an earlier version honoured it and the owner's desktop appeared frozen). Only cards on screen animate (IntersectionObserver). Resting the mouse on a preview pauses it; moving off resumes from the same frame. Touch does not pause.
 - Writing: no em dashes or en dashes anywhere (owner's organisation rule); use commas, semicolons, parentheses or periods. Descriptions are one or two plain sentences in a confident architectural voice.
-- Cards are sorted alphabetically by title.
+- Cards appear in the order of the `ORDER` list in `assets/site.js` (file names, first to last); unlisted cards follow alphabetically by title. The tools keep the list in step: add appends, rename substitutes, remove deletes.
 
 ## 5. The card entry format (`DATA` in `assets/site.js`)
 

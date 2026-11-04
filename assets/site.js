@@ -21,6 +21,49 @@
     ['building', 'Building & Fabrication']
   ];
 
+  /* Display order of the cards: file names, first to last. Cards not listed
+     here follow, alphabetically by title. The order.html tool rewrites this. */
+  const ORDER = [
+    '3D_Automation_fromPlan.gh',
+    'Auditorium_Section.gh',
+    'Circular Folded Plate.gh',
+    'Circular_Folded_plate.gh',
+    'Daylight_optimization_Octopus_TTtoolbox_ClimateStudio.gh',
+    'Diagrid_Export.gh',
+    'Diagrid_in_surface.gh',
+    'Elevated_Road_Geometry_from_Alignment.gh',
+    'Honeybee_Energy_Simulation_Variable_Roof_color.gh',
+    'Biomorpher_Evolutionary_Growth.gh',
+    'Honeybee_Full_Building_Energy_Simulation.gh',
+    'Hexagon_in_Surface_Lunchbox.gh',
+    'Honeybee_IAB_requirements_2023.gh',
+    'Honeybee_IAB_requirements_project01_2023.gh',
+    'Honeybee_IAB_requirements_project02_2023.gh',
+    'Indoorairflow_Butterfly_Workflow.gh',
+    'Honeybee_Insulator_Thermal_Analysis.gh',
+    'Kangaroo Ancor Point Script.gh',
+    'Kangaroo_Basics.gh',
+    'Kangaroo_Example.gh',
+    'Optimum_point_of_connection.gh',
+    'Parametric_Screen_Fabrication_Example.gh',
+    'Path_Optimization_Galapagos.gh',
+    'Pier_Placement_in_Alignment.gh',
+    'Galapagos_Script_Printer_Location.gh',
+    'Residential_Unit_Growth_Biomorpher.gh',
+    'Road_lane_mark_generation.gh',
+    'Screen_UV_morph_jitter.gh',
+    'Segmentet_folded_Plate.gh',
+    'Shell_Segment_Script.gh',
+    'Stadium_Random_Composition_Script.gh',
+    'Surface_Voronoi.gh',
+    'Kangaroo_tensile_Example.gh',
+    'TensileRelaxScript.gh',
+    'Honeybee_Thermal_Workfolw_2023.gh',
+    'Elk_Urban_Map_OSM.gh',
+    'Volume_Voronoi.gh',
+    'Voronoi_with_attractor.gh'
+  ];
+
   const DATA = [
     { file: '3D_Automation_fromPlan.gh', title: '3D Automation from Plan', cat: 'building', preview: 'planExtrude', tags: ['Rhino', 'Grasshopper'],
       desc: 'Raises a 2D plan into a 3D massing in one pass: walls, slabs and openings read from the linework so a drawing becomes a model without redrawing.' },
@@ -153,7 +196,11 @@
     const count = document.getElementById('count');
     if (!grid) return;
 
-    const sorted = DATA.slice().sort((a, b) => a.title.localeCompare(b.title));
+    const rank = new Map(ORDER.map((f, i) => [f, i]));
+    const sorted = DATA.slice().sort((a, b) => {
+      const ra = rank.has(a.file) ? rank.get(a.file) : Infinity, rb = rank.has(b.file) ? rank.get(b.file) : Infinity;
+      return ra !== rb ? ra - rb : a.title.localeCompare(b.title);
+    });
     grid.innerHTML = sorted.map(cardHTML).join('');
     if (count) count.textContent = String(sorted.length);
 
@@ -200,5 +247,5 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
   window.GH_DATA = DATA;
-  window.GH_SITE = { DATA, CATEGORIES, cardHTML, catName, fmtSize };
+  window.GH_SITE = { DATA, CATEGORIES, ORDER, cardHTML, catName, fmtSize };
 })();

@@ -9,7 +9,9 @@ The site is four files plus the `.gh` files themselves. GitHub Pages serves the 
 | `assets/site.js` | The list of cards (`DATA`), the category names, the filters, the download links. |
 | `assets/previews.js` | The drawing engine and the library of preview animations. |
 | `assets/ghgraph.js` | Reads a .gh file in the browser and extracts its wiring diagram. Used by the add-a-card tool. |
-| `edit.html`, `assets/edit.js`, `assets/tooling.js` | The edit-a-card tool (rename, retitle, redescribe, remove) and helpers shared by both tools. |
+| `edit.html`, `assets/edit.js` | The edit-a-card tool (rename, retitle, redescribe, remove). |
+| `order.html`, `assets/order.js` | The order tool (which card shows first, which last). |
+| `assets/tooling.js` | Helpers shared by the tools. |
 | `graphs/` | One small `.json` per definition holding its wiring diagram (boxes and wires at canvas positions), used by the "from the file" animation. |
 | `previews/` | Optional real screen captures that replace a drawn animation. |
 | `.nojekyll` | Tells GitHub Pages to serve the files without processing. Leave it. |
@@ -32,6 +34,10 @@ The tool reads the live `site.js` and `index.html` from the site each time, so i
 
 To rename a file, change a card's title, description, category or plugins, or remove a card, use **edit.html** (https://shafiarch.github.io/Grasshopper/edit.html). Pick the card, edit the fields, and download the update. When you change the file name, the zip contains the .gh under its new name (fetched from the site) and `site.js` already points at it; after uploading, delete the old file on GitHub (the page links straight to it). The card's animation is kept as it is; to change that, use Add a card with "Existing card".
 
+## The order tool
+
+Cards appear in the order of the `ORDER` list in `assets/site.js` (file names, first to last); any card not in the list follows, alphabetically by title. **order.html** (https://shafiarch.github.io/Grasshopper/order.html) lets you drag cards into place, or use the arrows, with shortcuts for sorting by title, grouping by category and reversing. Download the update and upload `index.html` and `assets/site.js`. New cards made with Add a card go to the end of the order; Edit a card keeps a renamed card in its place.
+
 The manual route is below if you prefer editing on GitHub directly.
 
 ## Adding a new definition
@@ -45,7 +51,7 @@ The manual route is below if you prefer editing on GitHub directly.
 ```
 
 - `file` must match the file name exactly, including spaces and capitals. It is what the download button points at.
-- `title` is the card heading. Cards are sorted alphabetically by title.
+- `title` is the card heading. Cards appear in the order of the `ORDER` list (see the order tool); unlisted cards follow alphabetically.
 - `cat` is one of `form`, `structure`, `environment`, `optimization`, `urban`, `building`. The filter counts update by themselves.
 - `preview` picks the drawn animation (list below). Some previews take a `variant`.
 - `tags` are the plugin names shown under the description.
